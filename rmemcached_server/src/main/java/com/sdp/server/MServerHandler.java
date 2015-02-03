@@ -117,7 +117,7 @@ public class MServerHandler extends SimpleChannelUpstreamHandler {
 	public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e)
 			throws Exception {
 		// so what to do?
-//		System.out.println("server hear channelConnected: " + e.getChannel());
+		System.out.println("server hear channelConnected: " + e.getChannel());
 //		Integer channelId = e.getChannel().getId();
 //		System.out.println(channelId);
 	}
@@ -267,9 +267,7 @@ public class MServerHandler extends SimpleChannelUpstreamHandler {
 				clientKeyMap.put(clientlId, keyMap);
 			}
 			Map<String, Integer> keyMap = clientKeyMap.get(clientlId);
-			if (keyMap.containsKey(key)) {
-				keyMap.put(key, 0);
-			}
+			keyMap.put(key, 0);
 			
 			nm_write_1.Builder builder = nm_write_1.newBuilder();
 			builder.setKey(key);
@@ -309,7 +307,9 @@ public class MServerHandler extends SimpleChannelUpstreamHandler {
 			send.setNodeRoute(msg.getNodeRoute());
 			send.setMessageLite(builder);
 			send.setMsgID(EMSGID.nm_write_1_res);
-			e.getChannel().write(send);
+			
+			Channel channel = replicasMgr.clientChannelMap.get(msgLite.getMemID());
+			channel.write(send);
 		}
 			break;
 		case nm_write_1_res: {

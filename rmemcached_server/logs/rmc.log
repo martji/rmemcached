@@ -5,3 +5,5 @@ wrong serverlist format: 123
 java.lang.ArrayIndexOutOfBoundsException: 1
 	at com.sdp.server.MServerHandler.<init>(MServerHandler.java:50)
 	at com.sdp.server.MServerHandler.main(MServerHandler.java:41)
+[INFO ] 2015-02-03 20:39:06,428 method:com.sdp.server.MServerHandler.handle(MServerHandler.java:234)
+write conflict, please request again.

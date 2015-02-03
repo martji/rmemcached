@@ -31,7 +31,7 @@ public class MServer {
 	}
 
 	public MServer() {
-		init(8080);
+		init(30000);
 	}
 	
 	/**

@@ -16,6 +16,7 @@ import com.sdp.messageBody.requestMsg.nr_Read;
 import com.sdp.messageBody.requestMsg.nr_Read_res;
 import com.sdp.messageBody.requestMsg.nr_Stats;
 import com.sdp.messageBody.requestMsg.nr_write;
+import com.sdp.messageBody.requestMsg.nr_write_res;
 
 /**
  * 
@@ -37,6 +38,7 @@ public class RegisterHandler {
 		initHandler(EMSGID.nm_read.ordinal(), nm_read.class);
 		initHandler(EMSGID.nm_read_recovery.ordinal(), nm_read_recovery.class);
 		initHandler(EMSGID.nr_write.ordinal(), nr_write.class);
+		initHandler(EMSGID.nr_write_res.ordinal(), nr_write_res.class);
 		initHandler(EMSGID.nm_write_1.ordinal(), nm_write_1.class);
 		initHandler(EMSGID.nm_write_1_res.ordinal(), nm_write_1_res.class);
 		initHandler(EMSGID.nm_write_2.ordinal(), nm_write_2.class);

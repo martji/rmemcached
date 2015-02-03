@@ -36,13 +36,14 @@ public class MClient implements RMemcachedClient{
 
 	public static void main(String args[]) {
 		RegisterHandler.initHandler();
-		MClient mClient = new MClient(0, "192.168.3.201", 8080);
+		MClient mClient = new MClient(0, "192.168.3.201", 30000);
 
 		long time = System.nanoTime();
 		int opCount = 10000;
 		for (int i = 0; i < opCount; i++) {
 			System.out.println(i);
-			mClient.get();
+//			mClient.get();
+			mClient.set();
 		}
 		System.out.println(">>" + (System.nanoTime() - time) / opCount / 1000f);
 	}
@@ -72,8 +73,7 @@ public class MClient implements RMemcachedClient{
 					Executors.newCachedThreadPool()));
 
 			mClientHandler = new MClientHandler(clientNode, message);
-			bootstrap.setPipelineFactory(new MClientPipelineFactory(
-					mClientHandler));
+			bootstrap.setPipelineFactory(new MClientPipelineFactory(mClientHandler));
 
 			ChannelFuture future = bootstrap.connect(
 					new InetSocketAddress(host, port)).sync();
@@ -166,6 +166,13 @@ public class MClient implements RMemcachedClient{
 		
 		result = message.toString();
 		return !result.isEmpty();
+	}
+	
+	public void set() {
+		String key = "testKey";
+		String value = "This is a test.";
+		System.out.println(">>request: " + key + ", " + value);
+		System.out.println(">>response: " + set(key, value));
 	}
 
 	public boolean delete(String key) {

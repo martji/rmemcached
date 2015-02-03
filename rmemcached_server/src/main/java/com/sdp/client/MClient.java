@@ -35,7 +35,7 @@ public class MClient{
 
 	public static void main(String args[]) {
 		RegisterHandler.initHandler();
-		new MClient(0, "192.168.3.201", 8080);
+		new MClient(0, "192.168.3.201", 30000);
 	}
 	
 	public MClient(int id, String host, int port) {
@@ -57,8 +57,7 @@ public class MClient{
 					Executors.newCachedThreadPool()));
 
 			mClientHandler = new MClientHandler(id);
-			bootstrap.setPipelineFactory(new MClientPipelineFactory(
-					mClientHandler));
+			bootstrap.setPipelineFactory(new MClientPipelineFactory(mClientHandler));
 
 			try {
 				ChannelFuture future = bootstrap.connect(

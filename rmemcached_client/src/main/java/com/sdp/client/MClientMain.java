@@ -47,6 +47,20 @@ public class MClientMain {
 		
 		MClientMgr mc = new MClientMgr(0, replicasNum);
 		mc.init(serversMap);
+		
+		String key = "testKey";
+		String value = "This is a test of an object blah blah es.";
+		int runs = 10000;
+		int start = 0;
+		long begin = System.currentTimeMillis();
+		for (int i = start; i < start+runs; i++) {
+			System.out.println(i);
+			System.out.println(">>request: " + key + ", " + value);
+			System.out.println(">>response: " + mc.set(key + i, value));
+		}
+		long end = System.currentTimeMillis();
+		long time = end - begin;
+		System.out.println(runs + " sets: " + time + "ms");
 	}
 	
 	@SuppressWarnings({ "unchecked" })

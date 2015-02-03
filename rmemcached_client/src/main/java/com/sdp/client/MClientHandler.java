@@ -13,6 +13,7 @@ import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import com.sdp.common.EMSGID;
 import com.sdp.messageBody.requestMsg.nr_Connected_mem;
 import com.sdp.messageBody.requestMsg.nr_Read_res;
+import com.sdp.messageBody.requestMsg.nr_write_res;
 import com.sdp.netty.NetMsg;
 
 /**
@@ -80,6 +81,16 @@ public class MClientHandler extends SimpleChannelUpstreamHandler {
 			}
 		}
 			break;
+		case nr_write_res: {
+			nr_write_res msgBody = msg.getMessageLite();
+			String value = msgBody.getValue();
+			message.setLength(0);
+			message.append(value);
+			String obj = queue.pop();
+			synchronized (obj) {
+				obj.notify();
+			}
+		}
 		default:
 			break;
 		}
