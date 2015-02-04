@@ -48,19 +48,38 @@ public class MClientMain {
 		MClientMgr mc = new MClientMgr(0, replicasNum);
 		mc.init(serversMap);
 		
+		test(mc);
+		
+		mc.shutdown();
+	}
+	
+	public void test(MClientMgr mc) {
 		String key = "testKey";
 		String value = "This is a test of an object blah blah es.";
 		int runs = 10000;
 		int start = 0;
+		
 		long begin = System.currentTimeMillis();
 		for (int i = start; i < start+runs; i++) {
-			System.out.println(i);
-			System.out.println(">>request: " + key + ", " + value);
-			System.out.println(">>response: " + mc.set(key + i, value));
+			boolean result = mc.set(key + i, value);
+			if (!result) {
+				System.out.println(">>request: set " + key + i + ", error!");
+			}
 		}
 		long end = System.currentTimeMillis();
 		long time = end - begin;
 		System.out.println(runs + " sets: " + time + "ms");
+		
+		begin = System.currentTimeMillis();
+		for (int i = start; i < start+runs; i++) {
+			String result = mc.get(key + i);
+			if (result == null || result.isEmpty()) {
+				System.out.println(">>request: get " + key + i + ", error!");
+			}
+		}
+		end = System.currentTimeMillis();
+		time = end - begin;
+		System.out.println(runs + " gets: " + time + "ms");
 	}
 	
 	@SuppressWarnings({ "unchecked" })

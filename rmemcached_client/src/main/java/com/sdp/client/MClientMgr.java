@@ -47,6 +47,13 @@ public class MClientMgr {
 		}
 	}
 	
+	public void shutdown() {
+		Collection<MClient> clientList = clientMap.values();
+		for (MClient mClient : clientList) {
+			mClient.shutdown();
+		}
+	}
+	
 	public MClient randMClient(Integer hash) {
 		Random random = new Random();
 		int clientsNum = clientMap.size();
