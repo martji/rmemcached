@@ -1,0 +1,14 @@
+option java_package = "com.sdp.rmemcache.message";//包名
+option java_outer_classname="CommandMsg"; //类命
+
+message requestCommand{
+	required string actionName=1;
+	optional string key=2;
+	optional string value=3;
+	optional string  time=4;
+}
+
+message responseCommand{
+	optional string value=3;
+	optional string  time=4;
+}

@@ -1,0 +1,56 @@
+option java_package = "messageBody";//包名
+option java_outer_classname="requestMsg"; //类命
+
+// 连接memcached server
+message nr_Connected_mem
+{
+	
+}
+
+message nr_Connected_mem_back
+{
+	optional int32 memID=1;
+}
+
+message nr_Stats
+{
+	optional string key=1;
+	optional int32 clientid=2;
+	optional int64  time=3;
+}
+
+message nr_Stats_res
+{
+	optional string key=1;
+	optional string value=2;
+	optional int64  time=3;
+}
+
+message nr_Read
+{
+	optional string key=1;
+	optional int32 clientid=2;
+	optional int64  time=3;
+}
+
+message nr_Read_res
+{
+	optional string key=1;
+	optional string value=2;
+	optional int64  time=3;
+}
+
+message nr_write
+{
+	optional string key=1;
+	optional string value=2;
+	optional int64  time=3;
+}
+
+message nr_write_res
+{
+	optional string key=1;
+	optional string value=2;
+	optional int64  time=3;
+}
+
