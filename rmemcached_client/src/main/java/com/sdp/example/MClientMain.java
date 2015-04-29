@@ -13,7 +13,7 @@ import org.dom4j.DocumentException;
 import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
 
-import com.sdp.client.MemcachedClient;
+import com.sdp.client.MClient;
 import com.sdp.common.RegisterHandler;
 import com.sdp.server.ServerNode;
 /**
@@ -32,12 +32,8 @@ public class MClientMain {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
 		MClientMain launch = new MClientMain();
-//		launch.test();
-		launch.muiltTest(50);
-		
-//		System.exit(0);
+		launch.test();
 	}
 
 	public void test() {
@@ -52,11 +48,8 @@ public class MClientMain {
 		getServerList();
 		
 		int clientId = (int) System.nanoTime();
-		MemcachedClient mc = new MemcachedClient(clientId, replicasNum);
-		mc.init(serversMap);
-		
+		MClient mc = new MClient(clientId, serversMap);
 		run(mc);
-		
 		mc.shutdown();
 	}
 	
@@ -72,7 +65,7 @@ public class MClientMain {
 		getServerList();
 		
 		for (int i = 0; i < threadCount; i++) {
-			MemcachedClient mc = new MemcachedClient(i, replicasNum);
+			MClient mc = new MClient(i);
 			mc.init(serversMap);
 			
 			new SingleThread(mc, i).start();
@@ -80,9 +73,9 @@ public class MClientMain {
 	}
 	
 	class SingleThread extends Thread {
-		MemcachedClient mc;
+		MClient mc;
 		int id;
-		public SingleThread(MemcachedClient mc, int id) {
+		public SingleThread(MClient mc, int id) {
 			this.mc = mc;
 			this.id = id;
 		}
@@ -91,7 +84,7 @@ public class MClientMain {
 			String key = id + "testKey";
 			String value = "This is a test of an object blah blah es.";
 			
-			int runs = 5000;
+			int runs = 10000;
 			int start = 0;
 			long begin, end, time;
 			
@@ -119,7 +112,7 @@ public class MClientMain {
 		}
 	}
 	
-	public void run(MemcachedClient mc) {
+	public void run(MClient mc) {
 		String key = "testKey";
 		String value = "This is a test of an object blah blah es.";
 		for (int i = 0; i < 1090; i++) {
@@ -165,8 +158,8 @@ public class MClientMain {
 				 int id = Integer.parseInt(server.elementText("id"));
 				 String host = server.elementText("host");
 				 int port = Integer.parseInt(server.elementText("port"));
-				 
-				 ServerNode serverNode = new ServerNode(id, host, port);
+				 int memcachedPort = Integer.parseInt(server.elementText("memcached"));
+				 ServerNode serverNode = new ServerNode(id, host, port, memcachedPort);
 				 serversMap.put(id, serverNode);
 	        }
 		} catch (DocumentException e) {

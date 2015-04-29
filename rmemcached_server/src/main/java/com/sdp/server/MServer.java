@@ -1,7 +1,6 @@
 package com.sdp.server;
 
 import java.net.InetSocketAddress;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 
@@ -11,7 +10,8 @@ import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
-import com.sdp.common.RegisterHandler;
+import com.sdp.client.RMClient;
+import com.sdp.monitor.Monitor;
 import com.sdp.netty.MDecoder;
 import com.sdp.netty.MEncoder;
 
@@ -22,45 +22,63 @@ import com.sdp.netty.MEncoder;
  */
 
 public class MServer {
-	ServerBootstrap bootstrap;
-	MServerHandler mServerHandler = new MServerHandler();
+	MServerHandler mServerHandler;
+	RMClient monitorClient;
 
-	public static void main(String args[]) {
-		RegisterHandler.initHandler();
-		new MServer();
+	public MServer() {}
+	
+	/**
+	 * 
+	 * @param id : the id of the server instance
+	 * @param monitorAddress : the address of the monitor node
+	 * @param serversMap : all the server instances info
+	 */
+	public void init(int id, String monitorAddress, Map<Integer, ServerNode> serversMap, int protocol) {
+		ServerNode serverNode = serversMap.get(id);
+		String server = serverNode.getServer();
+		mServerHandler = new MServerHandler(server, id, serversMap, protocol);
+		int port = serverNode.getPort();
+		initRServer(port);
+		registerMonitor(id, monitorAddress, serversMap.get(id).getMemcached());
 	}
 
-	public MServer() {
-		init(30000);
+	public void init(int id, String monitorAddress,
+			Map<Integer, ServerNode> serversMap, MServerHandler mServerHandler) {
+		this.mServerHandler = mServerHandler;
+		ServerNode serverNode = serversMap.get(id);
+		int port = serverNode.getPort();
+		initRServer(port);
+		mServerHandler.replicasMgr.initThread();
+		registerMonitor(id, monitorAddress, serversMap.get(id).getMemcached());
+		
 	}
 	
 	/**
 	 * 
-	 * @param port : rmemcached-server port
-	 * @param servers : memcached servers
+	 * @param id : the id of the server instance
+	 * @param monitorAddress : the address of the monitor node
+	 * @param memcachedPort : the memcachedPort 
 	 */
-	public MServer(int port, List<String> servers) {
-		mServerHandler = new MServerHandler(servers);
-		init(port);
+	private void registerMonitor(int id, String monitorAddress, int memcachedPort) {
+		Monitor.getInstance().setPort(memcachedPort);
+		String[] arr = monitorAddress.split(":");
+		
+		String host = arr[0];
+		int port = Integer.parseInt(arr[1]);
+		monitorClient = new RMClient(id, host, port);
+		while (monitorClient.getmChannel() == null) {
+			try {
+				Thread.sleep(30*1000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			monitorClient.connect(host, port);
+		}
+		Monitor.getInstance().setMonitorChannel(monitorClient.getmChannel());
 	}
 
-	public MServer(ServerNode serverNode) {
-		int port = serverNode.getPort();
-		List<String> servers = serverNode.getMemcached();
-		mServerHandler = new MServerHandler(servers);
-		init(port);
-	}
-	
-	public MServer(int num, int replicasNum, Map<Integer, ServerNode> serversMap) {
-		ServerNode serverNode = serversMap.get(num);
-		int port = serverNode.getPort();
-		List<String> servers = serverNode.getMemcached();
-		mServerHandler = new MServerHandler(servers, num, replicasNum, serversMap);
-		init(port);
-	}
-
-	public void init(int port) {
-		bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
+	public void initRServer(int port) {
+		ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
 				Executors.newCachedThreadPool(),
 				Executors.newCachedThreadPool()));
 
@@ -69,10 +87,14 @@ public class MServer {
 		bootstrap.setOption("child.keepAlive", true);
 		bootstrap.setOption("reuseAddress", true);
 		bootstrap.bind(new InetSocketAddress(port));
+		System.out.println("[Netty] server start.");
+	}
+
+	public int getAReplica() {
+		return monitorClient.asynGetAReplica();
 	}
 
 	private class MServerPipelineFactory implements ChannelPipelineFactory {
-
 		MServerHandler mServerHandler;
 		
 		public MServerPipelineFactory(MServerHandler mServerHandler) {
@@ -87,4 +109,5 @@ public class MServer {
 			return pipeline;
 		}
 	}
+	
 }

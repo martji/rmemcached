@@ -25,7 +25,7 @@ public class MessageManager {
 		if (msgCla == null)
 			return;
 		Method method = msgCla.getMethod("getDefaultInstance");
-		MessageLite lite = (MessageLite) method.invoke(null, null);
+		MessageLite lite = (MessageLite) method.invoke(new Object[]{}, new Object[]{});
 		messageMap.put(id, lite);
 	}
 

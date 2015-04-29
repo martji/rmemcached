@@ -4,18 +4,21 @@ public class ServerNode {
 	private int id;
 	private String host;
 	private int port;
+	private int memcached;
 	
-	public ServerNode(String host, int port) {
+	public ServerNode(String host, int port, int memcached) {
 		this.host = host;
 		this.port = port;
+		this.memcached = memcached;
 	}
 	
-	public ServerNode(int id, String host, int port) {
+	public ServerNode(int id, String host, int port, int memcached) {
 		this.id = id;
 		this.host = host;
 		this.port = port;
+		this.memcached = memcached;
 	}
-
+	
 	public int getId() {
 		return id;
 	}
@@ -33,5 +36,15 @@ public class ServerNode {
 	}
 	public void setPort(int port) {
 		this.port = port;
+	}
+	public int getMemcached() {
+		return memcached;
+	}
+	public void setMemcached(int memcached) {
+		this.memcached = memcached;
+	}
+	
+	public String getServer() {
+		return host + ":" + memcached;
 	}
 }

@@ -3,19 +3,24 @@ package com.sdp.common;
 import java.lang.reflect.InvocationTargetException;
 
 import com.google.protobuf.GeneratedMessage;
-import com.sdp.messageBody.memcachedmsg.nm_Connected;
-import com.sdp.messageBody.memcachedmsg.nm_Connected_mem_back;
-import com.sdp.messageBody.memcachedmsg.nm_read;
-import com.sdp.messageBody.memcachedmsg.nm_read_recovery;
-import com.sdp.messageBody.memcachedmsg.nm_write_1;
-import com.sdp.messageBody.memcachedmsg.nm_write_1_res;
-import com.sdp.messageBody.memcachedmsg.nm_write_2;
-import com.sdp.messageBody.requestMsg.nr_Connected_mem;
-import com.sdp.messageBody.requestMsg.nr_Connected_mem_back;
-import com.sdp.messageBody.requestMsg.nr_Read;
-import com.sdp.messageBody.requestMsg.nr_Read_res;
-import com.sdp.messageBody.requestMsg.nr_Stats;
-import com.sdp.messageBody.requestMsg.nr_write;
+import com.sdp.messageBody.CtsMsg.nr_apply_replica;
+import com.sdp.messageBody.CtsMsg.nr_apply_replica_res;
+import com.sdp.messageBody.CtsMsg.nr_connected_mem;
+import com.sdp.messageBody.CtsMsg.nr_connected_mem_back;
+import com.sdp.messageBody.CtsMsg.nr_cpuStats;
+import com.sdp.messageBody.CtsMsg.nr_cpuStats_res;
+import com.sdp.messageBody.CtsMsg.nr_read;
+import com.sdp.messageBody.CtsMsg.nr_read_res;
+import com.sdp.messageBody.CtsMsg.nr_register;
+import com.sdp.messageBody.CtsMsg.nr_replicas_res;
+import com.sdp.messageBody.CtsMsg.nr_write;
+import com.sdp.messageBody.StsMsg.nm_connected;
+import com.sdp.messageBody.StsMsg.nm_connected_mem_back;
+import com.sdp.messageBody.StsMsg.nm_read;
+import com.sdp.messageBody.StsMsg.nm_read_recovery;
+import com.sdp.messageBody.StsMsg.nm_write_1;
+import com.sdp.messageBody.StsMsg.nm_write_1_res;
+import com.sdp.messageBody.StsMsg.nm_write_2;
 
 /**
  * 
@@ -25,15 +30,20 @@ import com.sdp.messageBody.requestMsg.nr_write;
 
 public class RegisterHandler {
 	public static void initHandler() {
-		initHandler(EMSGID.nm_connected.ordinal(), nm_Connected.class);
+		initHandler(EMSGID.nm_connected.ordinal(), nm_connected.class);
 		initHandler(EMSGID.nm_connected_mem_back.ordinal(),
-				nm_Connected_mem_back.class);
-		initHandler(EMSGID.nr_connected_mem.ordinal(), nr_Connected_mem.class);
+				nm_connected_mem_back.class);
+		initHandler(EMSGID.nr_connected_mem.ordinal(), nr_connected_mem.class);
 		initHandler(EMSGID.nr_connected_mem_back.ordinal(),
-				nr_Connected_mem_back.class);
-		initHandler(EMSGID.nr_stats.ordinal(), nr_Stats.class);
-		initHandler(EMSGID.nr_read.ordinal(), nr_Read.class);
-		initHandler(EMSGID.nr_read_res.ordinal(), nr_Read_res.class);
+				nr_connected_mem_back.class);
+		initHandler(EMSGID.nr_read.ordinal(), nr_read.class);
+		initHandler(EMSGID.nr_read_res.ordinal(), nr_read_res.class);
+		initHandler(EMSGID.nr_stats.ordinal(), nr_cpuStats.class);
+		initHandler(EMSGID.nr_stats_res.ordinal(), nr_cpuStats_res.class);
+		initHandler(EMSGID.nr_stats.ordinal(), nr_apply_replica.class);
+		initHandler(EMSGID.nr_stats_res.ordinal(), nr_apply_replica_res.class);
+		initHandler(EMSGID.nr_register.ordinal(), nr_register.class);
+		initHandler(EMSGID.nr_replicas_res.ordinal(), nr_replicas_res.class);
 		initHandler(EMSGID.nm_read.ordinal(), nm_read.class);
 		initHandler(EMSGID.nm_read_recovery.ordinal(), nm_read_recovery.class);
 		initHandler(EMSGID.nr_write.ordinal(), nr_write.class);

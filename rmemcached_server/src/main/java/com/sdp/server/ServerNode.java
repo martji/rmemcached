@@ -1,33 +1,22 @@
 package com.sdp.server;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class ServerNode {
 	private int id;
 	private String host;
 	private int port;
-	private List<String> memcached;
+	private int memcached;
 	
-	public ServerNode(String host, int port, String memcached) {
+	public ServerNode(String host, int port, int memcached) {
 		this.host = host;
 		this.port = port;
-		this.memcached = new ArrayList<String>();
-		String[] memcachedList = memcached.split(",");
-		for (String mcNode : memcachedList) {
-			this.memcached.add(mcNode);
-		}
+		this.memcached = memcached;
 	}
 	
-	public ServerNode(int id, String host, int port, String memcached) {
+	public ServerNode(int id, String host, int port, int memcached) {
 		this.id = id;
 		this.host = host;
 		this.port = port;
-		this.memcached = new ArrayList<String>();
-		String[] memcachedList = memcached.split(",");
-		for (String mcNode : memcachedList) {
-			this.memcached.add(mcNode);
-		}
+		this.memcached = memcached;
 	}
 	
 	public int getId() {
@@ -48,10 +37,14 @@ public class ServerNode {
 	public void setPort(int port) {
 		this.port = port;
 	}
-	public List<String> getMemcached() {
+	public int getMemcached() {
 		return memcached;
 	}
-	public void setMemcached(List<String> memcached) {
+	public void setMemcached(int memcached) {
 		this.memcached = memcached;
+	}
+	
+	public String getServer() {
+		return host + ":" + memcached;
 	}
 }
