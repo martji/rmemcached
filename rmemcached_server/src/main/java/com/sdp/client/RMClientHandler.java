@@ -14,7 +14,7 @@ import com.sdp.messageBody.CtsMsg.nr_apply_replica_res;
 import com.sdp.messageBody.CtsMsg.nr_cpuStats_res;
 import com.sdp.messageBody.StsMsg.nm_connected;
 import com.sdp.messageBody.StsMsg.nm_read_recovery;
-import com.sdp.monitor.Monitor;
+import com.sdp.monitor.LocalMonitor;
 import com.sdp.netty.NetMsg;
 import com.sdp.operation.BaseOperation;
 
@@ -67,7 +67,7 @@ public class RMClientHandler extends SimpleChannelUpstreamHandler {
 		}
 			break;
 		case nr_stats: {
-			Double cpuCost = Monitor.getInstance().getCpuCost();
+			Double cpuCost = LocalMonitor.getInstance().getCpuCost();
 			
 			nr_cpuStats_res.Builder builder = nr_cpuStats_res.newBuilder();
 			builder.setValue(cpuCost.toString());
@@ -88,9 +88,9 @@ public class RMClientHandler extends SimpleChannelUpstreamHandler {
 			break;
 		case nm_read_recovery: {
 			nm_read_recovery msgLite = msg.getMessageLite();
-			String key = msgLite.getKey();
+			String id = msgLite.getKey();
 			String value = msgLite.getValue();
-			handleNmreadOp(key, value);
+			handleNmreadOp(id, value);
 		}
 			break;
 		default:
@@ -98,15 +98,16 @@ public class RMClientHandler extends SimpleChannelUpstreamHandler {
 		}
 	}
 	
+	@SuppressWarnings("unchecked")
 	private void handleStatsOp(String key, String value) {
 		if (opMap.containsKey(key)) {
-			@SuppressWarnings("unchecked")
+			int replicaId = -1;
 			BaseOperation<Integer> op = (BaseOperation<Integer>) opMap.get(key);
 			if (value != null && value.length() > 0) {
-				int replicaId = Integer.parseInt(value);
-				op.getMcallback().gotdata(replicaId);
-				opMap.remove(key);
+				replicaId = Integer.parseInt(value);
 			}
+			op.getMcallback().gotdata(replicaId);
+			opMap.remove(key);
 		}
 		
 	}
@@ -114,8 +115,12 @@ public class RMClientHandler extends SimpleChannelUpstreamHandler {
 	private void handleNmreadOp(String key, String value) {
 		if (opMap.containsKey(key)) {
 			@SuppressWarnings("unchecked")
-			BaseOperation<String> op = (BaseOperation<String>) opMap.get(key);
-			op.getMcallback().gotdata(value);
+			BaseOperation<Boolean> op = (BaseOperation<Boolean>) opMap.get(key);
+			if (value != null && value.length() > 0) {
+				op.getMcallback().gotdata(true);
+			} else {
+				op.getMcallback().gotdata(false);
+			}
 			opMap.remove(key);
 		}
 		

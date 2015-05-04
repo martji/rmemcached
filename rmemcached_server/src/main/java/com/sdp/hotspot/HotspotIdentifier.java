@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 
-import com.sdp.monitor.Monitor;
+import com.sdp.monitor.LocalMonitor;
 
 public class HotspotIdentifier {
 	Long currenTimestamp;
@@ -65,7 +65,7 @@ public class HotspotIdentifier {
 					}
 				}
 				
-				if (Monitor.getInstance().cpuCost > cputhreod) {
+				if (LocalMonitor.getInstance().cpuCost > cputhreod) {
 					String hotKey = null;
 					Double weight = 0.0;
 					for (Entry<String, Integer> e : highMap.entrySet()) {

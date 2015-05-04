@@ -62,6 +62,8 @@ public class MServerMain {
 		MServerHandler mServerHandler = new MServerHandler(server, id, serversMap, protocol);
 		mServerHandler.setMServer(mServer);
 		mServer.init(id, monitorAddress, serversMap, mServerHandler);
+		
+		System.out.println(mServer.getAReplica());
 	}
 	
 	@SuppressWarnings({ "unchecked" })

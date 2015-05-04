@@ -11,7 +11,7 @@ import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
 import com.sdp.client.RMClient;
-import com.sdp.monitor.Monitor;
+import com.sdp.monitor.LocalMonitor;
 import com.sdp.netty.MDecoder;
 import com.sdp.netty.MEncoder;
 
@@ -60,21 +60,44 @@ public class MServer {
 	 * @param memcachedPort : the memcachedPort 
 	 */
 	private void registerMonitor(int id, String monitorAddress, int memcachedPort) {
-		Monitor.getInstance().setPort(memcachedPort);
+		LocalMonitor.getInstance().setPort(memcachedPort);
 		String[] arr = monitorAddress.split(":");
 		
-		String host = arr[0];
-		int port = Integer.parseInt(arr[1]);
+		final String host = arr[0];
+		final int port = Integer.parseInt(arr[1]);
 		monitorClient = new RMClient(id, host, port);
 		while (monitorClient.getmChannel() == null) {
 			try {
 				Thread.sleep(30*1000);
-			} catch (InterruptedException e) {
+			} catch (Exception e) {
 				e.printStackTrace();
 			}
 			monitorClient.connect(host, port);
 		}
-		Monitor.getInstance().setMonitorChannel(monitorClient.getmChannel());
+		LocalMonitor.getInstance().setMonitorChannel(monitorClient.getmChannel());
+		
+		new Thread(new Runnable() {
+			public void run() {
+				while (true) {
+					try {
+						Thread.sleep(60*1000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+					if (!monitorClient.getmChannel().isConnected()) {
+						while (!monitorClient.getmChannel().isConnected()) {
+							monitorClient.connect(host, port);
+							try {
+								Thread.sleep(30*1000);
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+						}
+						LocalMonitor.getInstance().setMonitorChannel(monitorClient.getmChannel());
+					}
+				}
+			}
+		}).start();
 	}
 
 	public void initRServer(int port) {

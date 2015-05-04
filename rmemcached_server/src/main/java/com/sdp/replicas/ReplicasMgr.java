@@ -22,6 +22,7 @@ import com.sdp.messageBody.CtsMsg.nr_read_res;
 import com.sdp.messageBody.CtsMsg.nr_register;
 import com.sdp.messageBody.CtsMsg.nr_write;
 import com.sdp.messageBody.CtsMsg.nr_write_res;
+import com.sdp.messageBody.StsMsg.nm_read_recovery;
 import com.sdp.messageBody.StsMsg.nm_write_1;
 import com.sdp.messageBody.StsMsg.nm_write_1_res;
 import com.sdp.messageBody.StsMsg.nm_write_2;
@@ -273,16 +274,18 @@ public class ReplicasMgr {
 			replicasClientMap.put(replicaId, replicaClient);
 		}
 		
-		if (replicasIdMap.containsKey(oriKey)) {
-			replicasIdMap.get(oriKey).add(replicaId);
-		} else {
-			Vector<Integer> vector = new Vector<Integer>();
-			vector.add(replicaId);
-			replicasIdMap.put(oriKey, vector);
-		}
-		
 		String value = (String) mc.get(oriKey);
-		return replicaClient.recoveryAReplica(oriKey, value);
+		boolean out = replicaClient.recoveryAReplica(oriKey, value);
+		if (out) {
+			if (replicasIdMap.containsKey(oriKey)) {
+				replicasIdMap.get(oriKey).add(replicaId);
+			} else {
+				Vector<Integer> vector = new Vector<Integer>();
+				vector.add(replicaId);
+				replicasIdMap.put(oriKey, vector);
+			}
+		}
+		return out;
 	}
 
 	/**
@@ -293,7 +296,8 @@ public class ReplicasMgr {
 		// TODO
 		if (LocalHotspots.contains(key)) {
 			if (!replicasIdMap.containsKey(key)) {
-				mServer.getAReplica();
+				int replicaId = mServer.getAReplica();	// get a replica according to the current cpu cost
+				createReplica(key, replicaId);			// create a replica for the key
 			} else {
 				Long timestamp = System.currentTimeMillis();
 				hotspotIdentifier.handleRegister(timestamp, key);
@@ -347,6 +351,25 @@ public class ReplicasMgr {
 			String key = msgLite.getKey();
 			int failedId = msg.getNodeRoute();
 			handleReadFailed(e.getChannel(), key, failedId);
+		}
+			break;
+		case nm_read_recovery: {
+			nm_read_recovery msgLite = msg.getMessageLite();
+			String key = msgLite.getKey();
+			String value = msgLite.getValue();
+			OperationFuture<Boolean> res = mc.set(key, 3600, value);
+			boolean setState = getSetState(res);
+			if (!setState) {
+				value = "";
+			}
+			
+			nm_read_recovery.Builder builder = nm_read_recovery.newBuilder();
+			builder.setKey(key);
+			builder.setValue(value);
+			NetMsg msg_back = NetMsg.newMessage();
+			msg_back.setMessageLite(builder);
+			msg_back.setMsgID(EMSGID.nm_read_recovery);
+			e.getChannel().write(msg);
 		}
 			break;
 		case nr_write: {

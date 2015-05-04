@@ -12,4 +12,28 @@
 		<port>30001</port>
 		<memcached>20001</memcached>
 	</server>
+	<server>
+		<id>0002</id>
+		<host>192.168.3.244</host>
+		<port>30002</port>
+		<memcached>20002</memcached>
+	</server>
+	<server>
+		<id>0003</id>
+		<host>192.168.3.244</host>
+		<port>30003</port>
+		<memcached>20003</memcached>
+	</server>
+	<server>
+		<id>0004</id>
+		<host>192.168.3.109</host>
+		<port>30004</port>
+		<memcached>20004</memcached>
+	</server>
+	<server>
+		<id>0005</id>
+		<host>192.168.3.109</host>
+		<port>30005</port>
+		<memcached>20005</memcached>
+	</server>
 </servers>

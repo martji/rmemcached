@@ -18,6 +18,7 @@ import com.sdp.future.MCallback;
 import com.sdp.future.MFuture;
 import com.sdp.messageBody.CtsMsg.nr_apply_replica;
 import com.sdp.messageBody.StsMsg.nm_read;
+import com.sdp.messageBody.StsMsg.nm_read_recovery;
 import com.sdp.netty.MDecoder;
 import com.sdp.netty.MEncoder;
 import com.sdp.netty.NetMsg;
@@ -116,11 +117,11 @@ public class RMClient{
 		mClientHandler.addOpMap(id, op);
 		
 		nr_apply_replica.Builder builder = nr_apply_replica.newBuilder();
+		builder.setKey(id);
 		NetMsg msg = NetMsg.newMessage();
 		msg.setNodeRoute(serverId);
 		msg.setMessageLite(builder);
 		msg.setMsgID(EMSGID.nr_apply_replica);
-		
 		mChannel.write(msg);
 		
 		try {
@@ -154,7 +155,25 @@ public class RMClient{
 	}
 	
 	public boolean recoveryAReplica(String key, String value) {
-		// TODO
+		CountDownLatch latch = new CountDownLatch(1);
+		BaseOperation<Boolean> op = new BaseOperation<Boolean>(new MCallback<Boolean>(latch));
+		MFuture<Boolean> future = new MFuture<Boolean>(latch, op);
+		String id = Long.toString(System.currentTimeMillis());
+		mClientHandler.addOpMap(id + ":" + key, op);
+		
+		nm_read_recovery.Builder builder = nm_read_recovery.newBuilder();
+		builder.setKey(key);
+		builder.setValue(value);
+		NetMsg msg = NetMsg.newMessage();
+		msg.setMessageLite(builder);
+		msg.setMsgID(EMSGID.nm_read_recovery);
+		mChannel.write(msg);
+		
+		try {
+			return future.get(timeout , TimeUnit.MILLISECONDS);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 		return false;
 	}
 	

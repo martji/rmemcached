@@ -19,8 +19,7 @@ import com.sdp.messageBody.StsMsg.nm_connected_mem_back;
 public class RegisterHandler {
 	public static void initHandler() {
 		initHandler(EMSGID.nm_connected.ordinal(), nm_connected.class);
-		initHandler(EMSGID.nm_connected_mem_back.ordinal(),
-				nm_connected_mem_back.class);
+		initHandler(EMSGID.nm_connected_mem_back.ordinal(), nm_connected_mem_back.class);
 		initHandler(EMSGID.nr_stats.ordinal(), nr_cpuStats.class);
 		initHandler(EMSGID.nr_stats_res.ordinal(), nr_cpuStats_res.class);
 		initHandler(EMSGID.nr_apply_replica.ordinal(), nr_apply_replica.class);

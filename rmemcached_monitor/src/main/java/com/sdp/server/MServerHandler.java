@@ -8,6 +8,7 @@ import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import com.sdp.common.EMSGID;
+import com.sdp.messageBody.CtsMsg.nr_apply_replica;
 import com.sdp.messageBody.CtsMsg.nr_apply_replica_res;
 import com.sdp.messageBody.CtsMsg.nr_cpuStats_res;
 import com.sdp.messageBody.StsMsg.nm_connected_mem_back;
@@ -74,8 +75,11 @@ public class MServerHandler extends SimpleChannelUpstreamHandler {
 		case nr_apply_replica: {
 			int serverNode = msg.getNodeRoute();
 			int replicaId = monitor.chooseReplica(serverNode);
+			nr_apply_replica msgLite = msg.getMessageLite();
+			String id = msgLite.getKey();
 			
 			nr_apply_replica_res.Builder builder = nr_apply_replica_res.newBuilder();
+			builder.setKey(id);
 			builder.setValue(Integer.toString(replicaId));
 			NetMsg send = NetMsg.newMessage();
 			send.setMessageLite(builder);
