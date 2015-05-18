@@ -1,6 +1,7 @@
 package com.sdp.client;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
@@ -46,11 +47,11 @@ public class MClient {
 		Collection<ServerNode> serverList = serversMap.values();
 		for (ServerNode serverNode : serverList) {
 			int serverId = serverNode.getId();
-			RMemcachedClientImpl rmClient = new RMemcachedClientImpl(serverNode);
-			rmClient.bindKeyReplicaMap(keyReplicaMap);
+			RMemcachedClientImpl rmClient = new RMemcachedClientImpl(serverNode, keyReplicaMap);
 			clientMap.put(serverId, rmClient);
 			clientIdVector.add(serverId);
 		}
+		Collections.sort(clientIdVector);
 	}
 	
 	public void shutdown() {
@@ -60,11 +61,11 @@ public class MClient {
 		}
 	}
 	
-	public int leaderClient(String key) {
-		int leaderIndex = gethashMem(key);
-		return clientIdVector.get(leaderIndex);
-	}
-	
+	/**
+	 * 
+	 * @param key
+	 * @return get the hash value of the key and map it to the serverId
+	 */
 	public int gethashMem(String key) {
 		int clientsNum = clientIdVector.size();
 		if (clientsNum == 1) {
@@ -72,13 +73,14 @@ public class MClient {
 		}
 		int leaderIndex = key.hashCode() % clientsNum;
 		leaderIndex = Math.abs(leaderIndex);
-		return leaderIndex;
+		return clientIdVector.get(leaderIndex);
 	}
 	
 	public String get(String key) {
 		String value = null;
 		RMemcachedClientImpl rmClient;
-		int masterId = leaderClient(key);
+		int masterId = gethashMem(key);
+		
 		if (keyReplicaMap.containsKey(key)) {
 			int replicasId = keyReplicaMap.get(key);
 			rmClient = clientMap.get(replicasId);
@@ -96,7 +98,8 @@ public class MClient {
 	
 	public boolean set(String key, String value) {
 		boolean result = false;
-		RMemcachedClientImpl rmClient = clientMap.get(leaderClient(key));
+		int masterId = gethashMem(key);
+		RMemcachedClientImpl rmClient = clientMap.get(masterId);
 		result = rmClient.set(key, value);
 		return result;
 	}

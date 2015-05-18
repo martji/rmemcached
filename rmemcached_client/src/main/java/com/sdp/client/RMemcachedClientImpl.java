@@ -24,7 +24,6 @@ import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.jboss.netty.util.internal.ConcurrentHashMap;
 
 import com.sdp.common.EMSGID;
-import com.sdp.common.RegisterHandler;
 import com.sdp.future.MCallback;
 import com.sdp.future.MFuture;
 import com.sdp.messageBody.CtsMsg.nr_read;
@@ -57,27 +56,14 @@ public class RMemcachedClientImpl implements RMemcachedClient{
 	MemcachedClient client;
 	private static int timeout = 2500;
 
-	public static void main(String args[]) {
-		RegisterHandler.initHandler();
-		ServerNode serverNode = new ServerNode(0, "192.168.3.109", 30000, 20000);
-		RMemcachedClientImpl mClient = new RMemcachedClientImpl(serverNode);
-
-		long time = System.nanoTime();
-		int opCount = 10000;
-		for (int i = 0; i < opCount; i++) {
-			System.out.println(i);
-			mClient.set();
-		}
-		System.out.println(">>" + (System.nanoTime() - time) / opCount / 1000f);
-	}
-
-	public RMemcachedClientImpl(ServerNode serverNode) {
+	public RMemcachedClientImpl(ServerNode serverNode, ConcurrentMap<String, Integer> keyReplicaMap) {
 		int serverId = serverNode.getId();
 		String host = serverNode.getHost();
 		int port = serverNode.getPort();
 		int memcachedPort = serverNode.getMemcached();
 		
 		this.clientId = serverId;
+		this.keyReplicaMap = keyReplicaMap;
 		init(serverId, host, port, memcachedPort);
 	}
 
@@ -143,12 +129,6 @@ public class RMemcachedClientImpl implements RMemcachedClient{
 		String value = null;
 		value = (String) client.get(key);
 		if (needRegister) {
-//			Runnable task = new Runnable() {
-//				public void run() {
-//					register2R(key);
-//				}
-//			};
-//			threadPool.execute(task);
 			register2R(key);
 		}
 		return value;
@@ -275,7 +255,8 @@ public class RMemcachedClientImpl implements RMemcachedClient{
 	}
 	
 	public void register2R(String key) {
-		if (need2Register()) {
+//		if (need2Register()) {
+		if (true) {
 			nr_register.Builder builder = nr_register.newBuilder();
 			builder.setKey(key);
 			builder.setTime(System.nanoTime());

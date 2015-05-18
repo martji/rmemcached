@@ -43,7 +43,7 @@ public class LocalMonitor {
             monitor.cpuCost = cpuCost;
         }   
         catch (Exception e) {  
-//            e.printStackTrace();  
+//        	Log.log.error("getCpucost", e);
         }  
         return cpuCost;
     }

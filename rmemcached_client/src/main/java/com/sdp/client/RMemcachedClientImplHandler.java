@@ -82,9 +82,7 @@ public class RMemcachedClientImplHandler extends SimpleChannelUpstreamHandler {
 			nr_replicas_res msgBody = msg.getMessageLite();
 			String key = msgBody.getKey();
 			String value = msgBody.getValue();
-			if (value != null) {
-				updateKeyReplicaMap(key, value);
-			}
+			updateKeyReplicaMap(key, value);
 		}
 			break;
 		case nr_read_res: {
@@ -129,8 +127,10 @@ public class RMemcachedClientImplHandler extends SimpleChannelUpstreamHandler {
 	}
 
 	private void updateKeyReplicaMap(String key, String value) {
-		int replicaId = Integer.parseInt(value);
-		keyReplicaMap.put(key, replicaId);
+		if (value != null && value.length() > 0) {
+			int replicaId = Integer.parseInt(value);
+			keyReplicaMap.put(key, replicaId);
+		}
 	}
 
 	public void addOpMap(String id, BaseOperation<?> op) {

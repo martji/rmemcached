@@ -3,25 +3,28 @@ package com.sdp.replicas;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Random;
 import java.util.Map.Entry;
 import java.util.Vector;
 import net.spy.memcached.MemcachedClient;
 import net.spy.memcached.internal.OperationFuture;
 
-import org.apache.log4j.Logger;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.util.internal.ConcurrentHashMap;
 
 import com.sdp.client.RMClient;
 import com.sdp.common.EMSGID;
+import com.sdp.example.Log;
 import com.sdp.hotspot.HotspotIdentifier;
 import com.sdp.messageBody.CtsMsg.nr_connected_mem_back;
 import com.sdp.messageBody.CtsMsg.nr_read;
 import com.sdp.messageBody.CtsMsg.nr_read_res;
 import com.sdp.messageBody.CtsMsg.nr_register;
+import com.sdp.messageBody.CtsMsg.nr_replicas_res;
 import com.sdp.messageBody.CtsMsg.nr_write;
 import com.sdp.messageBody.CtsMsg.nr_write_res;
+import com.sdp.messageBody.StsMsg.nm_read;
 import com.sdp.messageBody.StsMsg.nm_read_recovery;
 import com.sdp.messageBody.StsMsg.nm_write_1;
 import com.sdp.messageBody.StsMsg.nm_write_1_res;
@@ -36,7 +39,6 @@ import com.sdp.server.ServerNode;
  */
 
 public class ReplicasMgr {
-	Logger logger;
 	HotspotIdentifier hotspotIdentifier;
 	
 	int serverId;
@@ -50,10 +52,10 @@ public class ReplicasMgr {
 	ConcurrentHashMap<String, LockKey> LockKeyMap = new ConcurrentHashMap<String, LockKey>();
 	
 	ConcurrentHashMap<Integer, Channel> clientChannelMap = new ConcurrentHashMap<Integer, Channel>();
+	ConcurrentHashMap<String, Vector<Channel>> keyClientMap = new ConcurrentHashMap<String, Vector<Channel>>();
 	ConcurrentHashMap<Integer, Map<String, Integer>> clientKeyMap = new ConcurrentHashMap<Integer, Map<String, Integer>>();
 	
 	public ReplicasMgr() {
-		logger = Logger.getLogger(ReplicasMgr.class);
 		hotspotIdentifier = new HotspotIdentifier(System.currentTimeMillis());
 	}
 	
@@ -114,7 +116,7 @@ public class ReplicasMgr {
 			lock.state = state;
 			LockKeyMap.put(key, lock);
 		} else {
-			logger.error("set Lock state error");
+			Log.log.error("set Lock state error");
 			return;
 		}
 	}
@@ -153,75 +155,6 @@ public class ReplicasMgr {
 		} catch (Exception e) {}
 		return false;
 	}
-	
-	public void handle2(MessageEvent e) {
-		NetMsg msg = (NetMsg) e.getMessage();
-		switch (msg.getMsgID()) {
-		case nr_connected_mem: {
-			int clientId = msg.getNodeRoute();
-			clientChannelMap.put(clientId, e.getChannel());
-			System.out.println("[Netty] server hear channelConnected from client: " + e.getChannel());
-			nr_connected_mem_back.Builder builder = nr_connected_mem_back.newBuilder();
-			NetMsg send = NetMsg.newMessage();
-			send.setMessageLite(builder);
-			send.setMsgID(EMSGID.nr_connected_mem_back);
-			e.getChannel().write(send);
-		}
-			break;
-		case nm_connected: {
-			int id = msg.getNodeRoute();
-			System.out.println("[Netty] server hear channelConnected from other server: " + e.getChannel());
-			if (!replicasClientMap.containsKey(id)) {
-				RMClient rmClient = new RMClient(serverId, serversMap.get(id));
-				if (rmClient.getmChannel() != null) {
-					replicasClientMap.put(id, rmClient);
-				}
-			} else if (replicasClientMap.get(id).getmChannel() == null) {
-				RMClient rmClient = replicasClientMap.get(id);
-				rmClient.connect(serversMap.get(id));
-			}
-		}
-			break;
-		case nr_register: {
-			nr_register msgLite = msg.getMessageLite();
-			String key = msgLite.getKey();
-			handleRegister(key);
-		}
-			break;
-		case nr_read: {
-			nr_read msgLite = msg.getMessageLite();
-			String key = msgLite.getKey();
-			int failedId = msg.getNodeRoute();
-			handleReadFailed(e.getChannel(), key, failedId);
-		}
-			break;
-		case nr_write: {
-			nr_write msgLite = msg.getMessageLite();
-			String key = msgLite.getKey();
-			String value = msgLite.getValue();
-			String oriKey = getOriKey(key);
-			
-			OperationFuture<Boolean> future = mc.set(oriKey, 3600, value);
-			try {
-				if (!future.get()) {
-					value = "";
-				}
-			} catch (Exception e1) {
-				e1.printStackTrace();
-			}
-			nr_write_res.Builder builder = nr_write_res.newBuilder();
-			builder.setKey(key);
-			builder.setValue(value);
-			NetMsg send = NetMsg.newMessage();
-			send.setMessageLite(builder);
-			send.setMsgID(EMSGID.nr_write_res);
-			e.getChannel().write(send);
-		}
-			break;
-		default:
-			break;
-		}
-	}
 
 	/**
 	 * @param channel
@@ -259,10 +192,60 @@ public class ReplicasMgr {
 	}
 	
 	/**
+	 * @param channel 
+	 * @param key
+	 * collect the register info
+	 */
+	private void handleRegister(Channel channel, String key) {
+		// TODO
+		if (!keyClientMap.contains(key)) {
+			keyClientMap.put(key, new Vector<Channel>());
+		}
+		if (!keyClientMap.get(key).contains(channel)) {
+			keyClientMap.get(key).add(channel);
+			int replicaId = serverId;
+			if (replicasIdMap.contains(key)) {
+				Vector<Integer> replicas = replicasIdMap.get(key);
+				replicaId = replicas.get(new Random().nextInt(replicas.size()));
+			}
+			nr_replicas_res.Builder builder = nr_replicas_res.newBuilder();
+			builder.setKey(key);
+			builder.setValue(Integer.toString(replicaId));
+			NetMsg msg = NetMsg.newMessage();
+			msg.setMessageLite(builder);
+			msg.setMsgID(EMSGID.nr_replicas_res);
+			channel.write(msg);
+			
+			return;
+		}
+		
+		// LocalHotspots.contains(key)
+		if (true) {
+			if (!replicasIdMap.containsKey(key)) {
+				int replicaId = mServer.getAReplica();
+				if (replicaId != -1) {
+					boolean result = createReplica(key, replicaId);
+					if (result) {	// create replication for key succeed
+						nr_replicas_res.Builder builder = nr_replicas_res.newBuilder();
+						builder.setKey(key);
+						builder.setValue(Integer.toString(replicaId));
+						NetMsg msg = NetMsg.newMessage();
+						msg.setMessageLite(builder);
+						msg.setMsgID(EMSGID.nr_replicas_res);
+						channel.write(msg);
+					}
+				}
+			} else {
+				Long timestamp = System.currentTimeMillis();
+				hotspotIdentifier.handleRegister(timestamp, key);
+			}
+		}
+	}
+	
+	/**
 	 * @param replicaId
 	 */
 	public boolean createReplica(String key, int replicaId) {
-		String oriKey = getOriKey(key);
 		RMClient replicaClient;
 		if (replicasClientMap.containsKey(replicaId)) {
 			replicaClient = replicasClientMap.get(replicaId);
@@ -274,40 +257,24 @@ public class ReplicasMgr {
 			replicasClientMap.put(replicaId, replicaClient);
 		}
 		
-		String value = (String) mc.get(oriKey);
-		boolean out = replicaClient.recoveryAReplica(oriKey, value);
+		String value = (String) mc.get(key);
+		boolean out = replicaClient.recoveryAReplica(key, value);
 		if (out) {
-			if (replicasIdMap.containsKey(oriKey)) {
-				replicasIdMap.get(oriKey).add(replicaId);
+			if (replicasIdMap.containsKey(key)) {
+				replicasIdMap.get(key).add(replicaId);
 			} else {
 				Vector<Integer> vector = new Vector<Integer>();
 				vector.add(replicaId);
-				replicasIdMap.put(oriKey, vector);
+				replicasIdMap.put(key, vector);
 			}
 		}
 		return out;
 	}
 
-	/**
-	 * @param key
-	 * collect the register info
-	 */
-	private void handleRegister(String key) {
-		// TODO
-		if (LocalHotspots.contains(key)) {
-			if (!replicasIdMap.containsKey(key)) {
-				int replicaId = mServer.getAReplica();	// get a replica according to the current cpu cost
-				createReplica(key, replicaId);			// create a replica for the key
-			} else {
-				Long timestamp = System.currentTimeMillis();
-				hotspotIdentifier.handleRegister(timestamp, key);
-			}
-		}
-	}
 	
 	private String getOriKey(String key) {
 		if (key.contains(":")) {
-			return key.substring(key.indexOf(":"));
+			return key.substring(key.indexOf(":") + 1);
 		}
 		return key;
 	}
@@ -327,23 +294,28 @@ public class ReplicasMgr {
 		}
 			break;
 		case nm_connected: {
-			int id = msg.getNodeRoute();
 			System.out.println("[Netty] server hear channelConnected from other server: " + e.getChannel());
+			final int id = msg.getNodeRoute();
 			if (!replicasClientMap.containsKey(id)) {
 				RMClient rmClient = new RMClient(serverId, serversMap.get(id));
 				if (rmClient.getmChannel() != null) {
 					replicasClientMap.put(id, rmClient);
 				}
-			} else if (replicasClientMap.get(id).getmChannel() == null) {
-				RMClient rmClient = replicasClientMap.get(id);
-				rmClient.connect(serversMap.get(id));
+			} else if (replicasClientMap.get(id).getmChannel() == null || 
+					!replicasClientMap.get(id).getmChannel().isConnected()) {
+				new Thread(new Runnable() {
+					public void run() {
+						RMClient rmClient = replicasClientMap.get(id);
+						rmClient.reconnect();
+					}
+				}).start();
 			}
 		}
 			break;
 		case nr_register: {
 			nr_register msgLite = msg.getMessageLite();
-			String key = msgLite.getKey();
-			handleRegister(key);
+			String key = msgLite.getKey(); // the original key
+			handleRegister(e.getChannel(), key);
 		}
 			break;
 		case nr_read: {
@@ -353,11 +325,30 @@ public class ReplicasMgr {
 			handleReadFailed(e.getChannel(), key, failedId);
 		}
 			break;
+		case nm_read: {
+			nm_read msgLite = msg.getMessageLite();
+			String key = msgLite.getKey();
+			String oriKey = getOriKey(key);
+			String value = (String) mc.get(oriKey);
+			if (value == null || value.length() == 0) {
+				value = "";
+			}
+			
+			nm_read.Builder builder = nm_read.newBuilder();
+			builder.setKey(key);
+			builder.setValue(value);
+			NetMsg msg2 = NetMsg.newMessage();
+			msg2.setMessageLite(builder);
+			msg2.setMsgID(EMSGID.nm_read);
+			e.getChannel().write(msg);
+		}
+			break;
 		case nm_read_recovery: {
 			nm_read_recovery msgLite = msg.getMessageLite();
 			String key = msgLite.getKey();
+			String oriKey = getOriKey(key);
 			String value = msgLite.getValue();
-			OperationFuture<Boolean> res = mc.set(key, 3600, value);
+			OperationFuture<Boolean> res = mc.set(oriKey, 3600, value);
 			boolean setState = getSetState(res);
 			if (!setState) {
 				value = "";
@@ -380,7 +371,7 @@ public class ReplicasMgr {
 			
 			Integer state = getLockState(key);
 			if (state == LockKey.waitLock) {
-				logger.info("write conflict, please request again.");
+				Log.log.info("write conflict, please request again.");
 				NetMsg send = getWriteResponse(key, "");
 				e.getChannel().write(send);
 				return;
@@ -389,7 +380,7 @@ public class ReplicasMgr {
 			int count = replicasIdMap.get(key).size();
 			LockKey lockKey = new LockKey(serverId, count, System.currentTimeMillis(), LockKey.waitLock);
 			if (setLockKey(key, lockKey) == false) {
-				logger.info("write lock conflict, please request again.");
+				Log.log.info("write lock conflict, please request again.");
 				NetMsg send = getWriteResponse(key, "");
 				e.getChannel().write(send);
 				return;
@@ -422,7 +413,7 @@ public class ReplicasMgr {
 			
 			LockKey lockKey = new LockKey(serverId, 0, System.currentTimeMillis(), LockKey.waitLock);
 			if (setLockKey(key, lockKey) == false) {
-				logger.info("nm_write_1 Lock fail, please request again.");
+				Log.log.info("nm_write_1 Lock fail, please request again.");
 				return;
 			}
 			
@@ -463,7 +454,7 @@ public class ReplicasMgr {
 					sendAllReplicas(msgLite.getKey(), send);
 				} else {
 					setLockState(msgLite.getKey(), LockKey.badLock);
-					logger.error("write to memcached server error");
+					Log.log.error("write to memcached server error");
 					NetMsg response = getWriteResponse(key, "");
 					clientChannelMap.get(msg.getNodeRoute()).write(response);
 				}
@@ -479,7 +470,7 @@ public class ReplicasMgr {
 				removeLock(key);
 			} else {
 				setLockState(key, LockKey.badLock);
-				logger.error("write in write_2 fail");
+				Log.log.error("write in write_2 fail");
 			}
 		}
 			break;
@@ -503,6 +494,10 @@ public class ReplicasMgr {
 		send.setMessageLite(builder);
 		send.setMsgID(EMSGID.nr_write_res);
 		return send;
+	}
+
+	public void setMServer(MServer mServer) {
+		this.mServer = mServer;
 	}
 
 }

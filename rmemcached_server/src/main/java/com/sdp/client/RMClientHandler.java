@@ -1,5 +1,7 @@
 package com.sdp.client;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -13,6 +15,7 @@ import com.sdp.common.EMSGID;
 import com.sdp.messageBody.CtsMsg.nr_apply_replica_res;
 import com.sdp.messageBody.CtsMsg.nr_cpuStats_res;
 import com.sdp.messageBody.StsMsg.nm_connected;
+import com.sdp.messageBody.StsMsg.nm_read;
 import com.sdp.messageBody.StsMsg.nm_read_recovery;
 import com.sdp.monitor.LocalMonitor;
 import com.sdp.netty.NetMsg;
@@ -60,10 +63,11 @@ public class RMClientHandler extends SimpleChannelUpstreamHandler {
 	}
 
 	private void handle(MessageEvent e) throws InterruptedException {
+		SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 		NetMsg msg = (NetMsg) e.getMessage();
 		switch (msg.getMsgID()) {
 		case nm_connected_mem_back: {
-			System.out.println("Connect to monitor successed.");
+			System.out.println(df.format(new Date()) + ": [Netty] Connect to monitor successed.");
 		}
 			break;
 		case nr_stats: {
@@ -86,11 +90,18 @@ public class RMClientHandler extends SimpleChannelUpstreamHandler {
 			handleStatsOp(key, value);
 		}
 			break;
+		case nm_read: {
+			nm_read msgLite = msg.getMessageLite();
+			String key = msgLite.getKey();
+			String value = msgLite.getValue();
+			handleNmreadOp(key, value);
+		}
+			break;
 		case nm_read_recovery: {
 			nm_read_recovery msgLite = msg.getMessageLite();
 			String id = msgLite.getKey();
 			String value = msgLite.getValue();
-			handleNmreadOp(id, value);
+			handleNmrecvOp(id, value);
 		}
 			break;
 		default:
@@ -109,10 +120,9 @@ public class RMClientHandler extends SimpleChannelUpstreamHandler {
 			op.getMcallback().gotdata(replicaId);
 			opMap.remove(key);
 		}
-		
 	}
 	
-	private void handleNmreadOp(String key, String value) {
+	private void handleNmrecvOp(String key, String value) {
 		if (opMap.containsKey(key)) {
 			@SuppressWarnings("unchecked")
 			BaseOperation<Boolean> op = (BaseOperation<Boolean>) opMap.get(key);
@@ -123,7 +133,15 @@ public class RMClientHandler extends SimpleChannelUpstreamHandler {
 			}
 			opMap.remove(key);
 		}
-		
+	}
+	
+	private void handleNmreadOp(String key, String value) {
+		if (opMap.containsKey(key)) {
+			@SuppressWarnings("unchecked")
+			BaseOperation<String> op = (BaseOperation<String>) opMap.get(key);
+			op.getMcallback().gotdata(value);
+			opMap.remove(key);
+		}
 	}
 
 	public void addOpMap(String id, BaseOperation<?> op) {

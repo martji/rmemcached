@@ -34,6 +34,8 @@ import com.sdp.server.ServerNode;
 public class RMClient{
 
 	int serverId;
+	String host;
+	int port;
 	ClientBootstrap bootstrap;
 	Channel mChannel = null;
 	RMClientHandler mClientHandler;
@@ -41,6 +43,8 @@ public class RMClient{
 
 	public RMClient(int id, String host, int port) {
 		this.serverId = id;
+		this.host = host;
+		this.port = port;
 		init(id, host, port);
 	}
 	
@@ -50,6 +54,8 @@ public class RMClient{
 		int port = serverNode.getPort();
 		
 		this.serverId = serverId;
+		this.host = host;
+		this.port = port;
 		init(serverId, host, port);
 	}
 	
@@ -58,6 +64,8 @@ public class RMClient{
 		int port = serverNode.getPort();
 		
 		this.serverId = serverId;
+		this.host = host;
+		this.port = port;
 		init(serverId, host, port);
 	}
 
@@ -89,10 +97,17 @@ public class RMClient{
 
 	}
 	
+	public void reconnect() {
+		try {
+			ChannelFuture future = bootstrap.connect(new InetSocketAddress(host, port)).sync();
+			while (!future.isDone()) {}
+			mChannel = future.getChannel();
+		} catch (Exception e) {}
+	}
+	
 	public void connect(String host, int port) {
 		try {
-			ChannelFuture future = bootstrap.connect(
-				new InetSocketAddress(host, port)).sync();
+			ChannelFuture future = bootstrap.connect(new InetSocketAddress(host, port)).sync();
 			while (!future.isDone()) {}
 			mChannel = future.getChannel();
 		} catch (Exception e) {}
@@ -101,12 +116,7 @@ public class RMClient{
 	public void connect(ServerNode serverNode) {
 		String host = serverNode.getHost();
 		int port = serverNode.getPort();
-		try {
-			ChannelFuture future = bootstrap.connect(
-				new InetSocketAddress(host, port)).sync();
-			while (!future.isDone()) {}
-			mChannel = future.getChannel();
-		} catch (Exception e) {}
+		connect(host, port);
 	}
 	
 	public int asynGetAReplica() {
@@ -137,7 +147,8 @@ public class RMClient{
 		BaseOperation<String> op = new BaseOperation<String>(new MCallback<String>(latch));
 		MFuture<String> future = new MFuture<String>(latch, op);
 		String id = Long.toString(System.currentTimeMillis());
-		mClientHandler.addOpMap(id + ":" + key, op);
+		key = id + ":" + key;
+		mClientHandler.addOpMap(key, op);
 		
 		nm_read.Builder builder = nm_read.newBuilder();
 		builder.setKey(key);
@@ -159,7 +170,8 @@ public class RMClient{
 		BaseOperation<Boolean> op = new BaseOperation<Boolean>(new MCallback<Boolean>(latch));
 		MFuture<Boolean> future = new MFuture<Boolean>(latch, op);
 		String id = Long.toString(System.currentTimeMillis());
-		mClientHandler.addOpMap(id + ":" + key, op);
+		key = id + ":" + key;
+		mClientHandler.addOpMap(key, op);
 		
 		nm_read_recovery.Builder builder = nm_read_recovery.newBuilder();
 		builder.setKey(key);

@@ -7,8 +7,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Scanner;
 
-import org.apache.log4j.Logger;
-import org.apache.log4j.PropertyConfigurator;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.Element;
@@ -31,7 +29,6 @@ public class MServerMain {
 	final int PAXOS = 2;
 	final int WEAK = 0;
 	
-	Logger log;
 	Map<Integer, ServerNode> serversMap;
 	int protocol;
 	String monitorAddress;
@@ -40,16 +37,13 @@ public class MServerMain {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
+		Log.init();
 		MServerMain lanuch = new MServerMain();
 		lanuch.start();
 	}
 
 	public void start() {
-		PropertyConfigurator.configure(System.getProperty("user.dir") + "/config/log4j.properties");
-		log = Logger.getLogger( MServerMain.class.getName());
 		serversMap = new HashMap<Integer, ServerNode>();
-		
 		RegisterHandler.initHandler();
 		getConfig();
 		getServerList();
@@ -63,7 +57,8 @@ public class MServerMain {
 		mServerHandler.setMServer(mServer);
 		mServer.init(id, monitorAddress, serversMap, mServerHandler);
 		
-		System.out.println(mServer.getAReplica());
+//		int replicaId = mServer.getAReplica();
+//		System.err.println(replicaId);
 	}
 	
 	@SuppressWarnings({ "unchecked" })
@@ -83,7 +78,7 @@ public class MServerMain {
 				 serversMap.put(id, serverNode);
 	        }
 		} catch (DocumentException e) {
-			log.error("wrong serverlist.xml", e);
+			Log.log.error("wrong serverlist.xml", e);
 		}
 	}
 	
@@ -100,7 +95,7 @@ public class MServerMain {
 				 LocalHotspots.add(keynum);
 	        }
 		} catch (DocumentException e) {
-			log.error("wrong hotspot.xml", e);
+			Log.log.error("wrong hotspot.xml", e);
 		}
 	}
 	
@@ -118,10 +113,10 @@ public class MServerMain {
 			}else if(protocolName.equals("weak")){
 				protocol = WEAK;
 			}else{
-				log.error("consistency protocol input error");
+				Log.log.error("consistency protocol input error");
 			}
 		} catch (Exception e) {
-			log.error("wrong config.properties", e);
+			Log.log.error("wrong config.properties", e);
 		}
 	}
 	

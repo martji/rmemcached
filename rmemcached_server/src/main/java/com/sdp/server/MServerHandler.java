@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import net.spy.memcached.MemcachedClient;
-import org.apache.log4j.Logger;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelStateEvent;
@@ -23,13 +22,10 @@ import com.sdp.replicas.ReplicasMgr;
 
 public class MServerHandler extends SimpleChannelUpstreamHandler {
 	
-	Logger logger;
 	ReplicasMgr replicasMgr;
-	MServer mServer;
+	MServer mServer = null;
 	
-	public MServerHandler() {
-		logger = Logger.getLogger(MServerHandler.class);
-	}
+	public MServerHandler() {}
 	
 	/**
 	 * 
@@ -73,11 +69,12 @@ public class MServerHandler extends SimpleChannelUpstreamHandler {
 	}
 	
 	private void handleMessage(MessageEvent e) {
-		replicasMgr.handle2(e);
+		replicasMgr.handle(e);
 	}
 
 	public void setMServer(MServer mServer) {
 		this.mServer = mServer;
+		replicasMgr.setMServer(mServer);
 	}
 }
 

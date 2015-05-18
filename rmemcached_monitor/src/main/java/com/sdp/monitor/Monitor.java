@@ -1,5 +1,8 @@
 package com.sdp.monitor;
 
+import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -30,8 +33,10 @@ public class Monitor extends Thread {
 	}
 
 	public void run() {
+		SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 		while (true) {
 			try {
+				System.out.println(df.format(new Date()) + ": cpuCost: " + medianCpuCostMap.toString());
 				Thread.sleep(1000*5);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
@@ -41,11 +46,19 @@ public class Monitor extends Thread {
 			while (servers.hasNext()) {
 				Entry<Integer, Channel> server = servers.next();
 				Channel channel = server.getValue();
-				nr_cpuStats.Builder builder = nr_cpuStats.newBuilder();
-				NetMsg send = NetMsg.newMessage();
-				send.setMessageLite(builder);
-				send.setMsgID(EMSGID.nr_stats);
-				channel.write(send);
+				if (channel.isConnected()) {
+					nr_cpuStats.Builder builder = nr_cpuStats.newBuilder();
+					NetMsg send = NetMsg.newMessage();
+					send.setMessageLite(builder);
+					send.setMsgID(EMSGID.nr_stats);
+					channel.write(send);
+				} else {
+					int serverId = server.getKey();
+					System.out.println(df.format(new Date()) + ": [Netty] Server " + serverId + " lose connect.");
+					serverChannelMap.remove(serverId);
+					medianCpuCostMap.remove(serverId);
+					cpuCostMap.remove(serverId);
+				}
 			}
 		}
 	}
@@ -60,8 +73,6 @@ public class Monitor extends Thread {
 	 * @param cpuCost
 	 */
 	public void handle(int clientNode, String cpuCost) {
-		Long currentTime = System.currentTimeMillis();
-		System.out.println(currentTime + ": Instance: " + clientNode + " cpuCost: " + cpuCost);
 		Double cost = Double.parseDouble(cpuCost);
 		if (cpuCostMap.containsKey(clientNode)) {
 			Queue<Double> arryCpuCost = cpuCostMap.get(clientNode);
@@ -69,12 +80,12 @@ public class Monitor extends Thread {
 			if (arryCpuCost.size() > 10) {
 				arryCpuCost.poll();
 			}
-			medianCpuCostMap.put(clientNode, (medianCpuCostMap.get(clientNode) + cost) / 2);
+			medianCpuCostMap.put(clientNode, getData((medianCpuCostMap.get(clientNode) + cost) / 2));
 		} else {
 			Queue<Double> arryCpuCost = new LinkedList<Double>();
 			arryCpuCost.offer(cost);
 			cpuCostMap.put(clientNode, arryCpuCost);
-			medianCpuCostMap.put(clientNode, cost);
+			medianCpuCostMap.put(clientNode, getData(cost));
 		}
 	}
 
@@ -83,12 +94,14 @@ public class Monitor extends Thread {
 	 * @param clientNode
 	 */
 	public int chooseReplica(int clientNode) {
-		int replicaNum = clientNode;
+		int replicaNum = -1;
 		Iterator<Entry<Integer, Double>> medianCosts = medianCpuCostMap.entrySet().iterator();
 		while (medianCosts.hasNext()) {
 			Entry<Integer, Double> costMap = medianCosts.next();
 			if (costMap.getKey() != clientNode) {
-				if (costMap.getValue() < medianCpuCostMap.get(replicaNum)) {
+				if (replicaNum == -1) {
+					replicaNum = costMap.getKey();
+				} else if (costMap.getValue() < medianCpuCostMap.get(replicaNum)) {
 					replicaNum = costMap.getKey();
 				}
 			}
@@ -96,4 +109,8 @@ public class Monitor extends Thread {
 		return replicaNum;
 	}
 
+	public double getData(double data) {
+		BigDecimal b = new BigDecimal(data);
+		return b.setScale(3, BigDecimal.ROUND_HALF_UP).doubleValue();
+	}
 }
