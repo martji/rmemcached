@@ -1,0 +1,58 @@
+option java_package = "com.sdp.messageBody";//包名
+option java_outer_classname="StsMsg"; //类命
+
+message nm_connected
+{
+	optional int32  num = 1;
+}
+
+message nm_connected_mem_back
+{
+	optional int32  num = 1;
+}
+
+message nm_read
+{
+	optional string key=1;
+	optional string value=2;
+	optional int64  time=3;
+}
+
+message nm_read_recovery
+{
+	optional string key=1;
+	optional string value=2;
+	optional int64  time=3;
+}
+
+message nm_write_1
+{
+	optional string key=1;
+	optional string value=2;
+	optional int64 time=3;
+	optional int32 memID=4;
+}
+
+message nm_write_1_res
+{
+	optional string key=1;
+	optional string value=2;
+	optional int64  time=3;
+	optional int32 memID=4;
+}
+
+message nm_write_2
+{
+	optional string key=1;
+	optional string value=2;
+	optional int64  time=3;
+	optional int32 memID=4;
+}
+
+message nm_write_2_res
+{
+	optional string key=1;
+	optional string value=2;
+	optional int64  time=3;
+	optional int32 memID=4;
+}

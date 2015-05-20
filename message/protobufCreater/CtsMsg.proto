@@ -1,0 +1,83 @@
+option java_package = "com.sdp.messageBody";//包名
+option java_outer_classname="CtsMsg"; //类命
+
+// 连接memcached server
+message nr_connected_mem
+{
+	
+}
+
+message nr_connected_mem_back
+{
+	optional int32 memID=1;
+}
+
+message nr_cpuStats
+{
+	optional string key=1;
+	optional int32 clientid=2;
+	optional int64  time=3;
+}
+
+message nr_cpuStats_res
+{
+	optional string key=1;
+	optional string value=2;
+	optional int64  time=3;
+}
+
+message nr_apply_replica
+{
+	optional string key=1;
+	optional int32 clientid=2;
+	optional int64  time=3;
+}
+
+message nr_apply_replica_res
+{
+	optional string key=1;
+	optional string value=2;
+	optional int64  time=3;
+}
+
+message nr_read
+{
+	optional string key=1;
+	optional int32 clientid=2;
+	optional int64  time=3;
+}
+
+message nr_read_res
+{
+	optional string key=1;
+	optional string value=2;
+	optional int64  time=3;
+}
+
+message nr_register
+{
+	optional string key=1;
+	optional int32 clientid=2;
+	optional int64  time=3;
+}
+
+message nr_replicas_res
+{
+	optional string key=1;
+	optional string value=2;
+	optional int64  time=3;
+}
+
+message nr_write
+{
+	optional string key=1;
+	optional string value=2;
+	optional int64  time=3;
+}
+
+message nr_write_res
+{
+	optional string key=1;
+	optional string value=2;
+	optional int64  time=3;
+}
