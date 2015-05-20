@@ -3,28 +3,29 @@
 # https://github.com/brianfrankcooper/YCSB/wiki/Core-Properties
 # java -jar ycsbCore-1.0.0-jar-with-dependencies.jar -P ../workloads/workloada -s -t
 
-db=com.yahoo.ycsb.db.Memcached
+db=com.yahoo.ycsb.db.RMemcached
 workload=com.yahoo.ycsb.workloads.CoreWorkload
 
 threadcount=1
 recordcount=10000
-operationcount=5000000
+operationcount=50000
 
 fieldcount=1
 fieldlength=64
 readallfields=true
 table=usertable
 
-readproportion=0
-updateproportion=1.0
+readproportion=1.0
+updateproportion=0
 scanproportion=0
 insertproportion=0
 
 requestdistribution=hotspot
 hotspotdatafraction=0.0001
-hotspotopnfraction=0.9
+hotspotopnfraction=0.2
 
 maxexecutiontime=1000
+histogram.buckets=100
 
-memcached.serverlist=192.168.3.244:20000,192.168.3.244:20001,192.168.3.244:20002,192.168.3.244:20003
+rmemcached.path=/config/serverlist.xml
 

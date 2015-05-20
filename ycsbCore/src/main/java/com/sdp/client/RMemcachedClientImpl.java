@@ -56,6 +56,7 @@ public class RMemcachedClientImpl implements RMemcachedClient{
 	RMemcachedClientImplHandler mClientHandler;
 	MemcachedClient client;
 	private static int timeout = 2500;
+	private static int exptime = 60*60*24*10;
 
 	public RMemcachedClientImpl(ServerNode serverNode, ConcurrentMap<String, Vector<Integer>> keyReplicaMap) {
 		int serverId = serverNode.getId();
@@ -170,7 +171,7 @@ public class RMemcachedClientImpl implements RMemcachedClient{
 	}
 	
 	public boolean set2M(String key, String value) {
-		OperationFuture<Boolean> res = client.set(key, 3600, value);
+		OperationFuture<Boolean> res = client.set(key, exptime, value);
 		try {
 			return res.get();
 		} catch (Exception e) {

@@ -5,7 +5,7 @@ import java.util.Set;
 
 public class LocalHotspots {
 	private static Set<String> hotspots = new HashSet<String>();
-	private static final String table = "user";
+	private static final String table = "usertable:user";
 	
 	public static boolean contains(String key) {
 		return hotspots.contains(key);

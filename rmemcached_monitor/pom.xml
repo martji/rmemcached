@@ -51,7 +51,7 @@
 				<configuration>
 					<archive>
 						<manifest>
-							<mainClass>com.sdp.server.MServerMain</mainClass>
+							<mainClass>com.sdp.server.MonitorMain</mainClass>
 						</manifest>
 					</archive>
 					<descriptorRefs>

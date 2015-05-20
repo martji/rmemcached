@@ -3,7 +3,6 @@ package com.sdp.replicas;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Random;
 import java.util.Map.Entry;
 import java.util.Vector;
 import net.spy.memcached.MemcachedClient;
@@ -46,6 +45,8 @@ public class ReplicasMgr {
 	MServer mServer;
 	MemcachedClient mc;
 	int protocol;
+	
+	private static int exptime = 60*60*24*10;
 	
 	ConcurrentHashMap<Integer, RMClient> replicasClientMap = new ConcurrentHashMap<Integer, RMClient>();
 	ConcurrentHashMap<String, Vector<Integer>> replicasIdMap = new ConcurrentHashMap<String, Vector<Integer>>();
@@ -198,48 +199,72 @@ public class ReplicasMgr {
 	 */
 	private void handleRegister(Channel channel, String key) {
 		// TODO
-		if (!keyClientMap.contains(key)) {
-			keyClientMap.put(key, new Vector<Channel>());
-		}
-		if (!keyClientMap.get(key).contains(channel)) {
-			keyClientMap.get(key).add(channel);
-			int replicaId = serverId;
-			if (replicasIdMap.contains(key)) {
-				Vector<Integer> replicas = replicasIdMap.get(key);
-				replicaId = replicas.get(new Random().nextInt(replicas.size()));
-			}
-			nr_replicas_res.Builder builder = nr_replicas_res.newBuilder();
-			builder.setKey(key);
-			builder.setValue(Integer.toString(replicaId));
-			NetMsg msg = NetMsg.newMessage();
-			msg.setMessageLite(builder);
-			msg.setMsgID(EMSGID.nr_replicas_res);
-			channel.write(msg);
-			
-			return;
-		}
-		
-		// LocalHotspots.contains(key)
-		if (true) {
+		if (LocalHotspots.contains(key)) {
 			if (!replicasIdMap.containsKey(key)) {
 				int replicaId = mServer.getAReplica();
 				if (replicaId != -1) {
 					boolean result = createReplica(key, replicaId);
 					if (result) {	// create replication for key succeed
-						nr_replicas_res.Builder builder = nr_replicas_res.newBuilder();
-						builder.setKey(key);
-						builder.setValue(Integer.toString(replicaId));
-						NetMsg msg = NetMsg.newMessage();
-						msg.setMessageLite(builder);
-						msg.setMsgID(EMSGID.nr_replicas_res);
-						channel.write(msg);
+						Vector<Integer> vector = new Vector<Integer>();
+						vector.add(serverId);
+						vector.add(replicaId);
+						replicasIdMap.put(key, vector);
+						infoAllClient(key);
 					}
 				}
 			} else {
-				Long timestamp = System.currentTimeMillis();
-				hotspotIdentifier.handleRegister(timestamp, key);
+//				Long timestamp = System.currentTimeMillis();
+//				hotspotIdentifier.handleRegister(timestamp, key);
 			}
 		}
+		
+		if (!keyClientMap.containsKey(key)) {
+			keyClientMap.put(key, new Vector<Channel>());
+		}
+		if (!keyClientMap.get(key).contains(channel)) {
+			keyClientMap.get(key).add(channel);
+			int replicaId = 0;
+			if (replicasIdMap.containsKey(key)) {
+				Vector<Integer> replicas = replicasIdMap.get(key);
+				replicaId = encodeReplicasInfo(replicas);
+			}
+			if (replicaId > 0) {
+				System.out.println("[Netty] new key register: " + key);
+				nr_replicas_res.Builder builder = nr_replicas_res.newBuilder();
+				builder.setKey(key);
+				builder.setValue(Integer.toString(replicaId));
+				NetMsg msg = NetMsg.newMessage();
+				msg.setMessageLite(builder);
+				msg.setMsgID(EMSGID.nr_replicas_res);
+				channel.write(msg);
+			}
+		}
+	}
+	
+	private void infoAllClient(String key) {
+		Vector<Channel> clients = keyClientMap.get(key);
+		if (clients == null || clients.size() == 0) {
+			return;
+		}
+		
+		int replicaId = encodeReplicasInfo(replicasIdMap.get(key));
+		nr_replicas_res.Builder builder = nr_replicas_res.newBuilder();
+		builder.setKey(key);
+		builder.setValue(Integer.toString(replicaId));
+		NetMsg msg = NetMsg.newMessage();
+		msg.setMessageLite(builder);
+		msg.setMsgID(EMSGID.nr_replicas_res);
+		for (Channel channel: clients) {
+			channel.write(msg);
+		}
+	}
+
+	public int encodeReplicasInfo(Vector<Integer> replicas) {
+		int result = 0;
+		for (int id : replicas) {
+			result += Math.pow(2, id);
+		}
+		return result;
 	}
 	
 	/**
@@ -258,6 +283,9 @@ public class ReplicasMgr {
 		}
 		
 		String value = (String) mc.get(key);
+		if (value == null || value.length() == 0) {
+			return false;
+		}
 		boolean out = replicaClient.recoveryAReplica(key, value);
 		if (out) {
 			if (replicasIdMap.containsKey(key)) {
@@ -348,7 +376,7 @@ public class ReplicasMgr {
 			String key = msgLite.getKey();
 			String oriKey = getOriKey(key);
 			String value = msgLite.getValue();
-			OperationFuture<Boolean> res = mc.set(oriKey, 3600, value);
+			OperationFuture<Boolean> res = mc.set(oriKey, exptime, value);
 			boolean setState = getSetState(res);
 			if (!setState) {
 				value = "";

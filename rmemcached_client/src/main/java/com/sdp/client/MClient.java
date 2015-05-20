@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentMap;
 
@@ -24,7 +25,7 @@ public class MClient {
 	/**
 	 * keyReplicaMap : save the replicated key and the replica
 	 */
-	ConcurrentMap<String, Integer> keyReplicaMap;
+	ConcurrentMap<String, Vector<Integer>> keyReplicaMap;
 	
 	/**
 	 * 
@@ -39,7 +40,7 @@ public class MClient {
 	public MClient(int clientId) {
 		this.clientId = clientId;
 		clientMap = new HashMap<Integer, RMemcachedClientImpl>();
-		keyReplicaMap = new ConcurrentHashMap<String, Integer>();
+		keyReplicaMap = new ConcurrentHashMap<String, Vector<Integer>>();
 		clientIdVector = new Vector<Integer>();
 	}
 	
@@ -76,13 +77,19 @@ public class MClient {
 		return clientIdVector.get(leaderIndex);
 	}
 	
+	public int getOneReplica(String key) {
+		Vector<Integer> vector = keyReplicaMap.get(key);
+		int index = new Random().nextInt(vector.size());
+		return vector.get(index);
+	}
+	
 	public String get(String key) {
 		String value = null;
 		RMemcachedClientImpl rmClient;
 		int masterId = gethashMem(key);
 		
 		if (keyReplicaMap.containsKey(key)) {
-			int replicasId = keyReplicaMap.get(key);
+			int replicasId = getOneReplica(key);
 			rmClient = clientMap.get(replicasId);
 			value = rmClient.get(key, masterId == replicasId);
 			if (value == null | value.length() == 0) {

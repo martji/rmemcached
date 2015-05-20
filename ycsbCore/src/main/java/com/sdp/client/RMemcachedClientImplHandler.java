@@ -83,6 +83,7 @@ public class RMemcachedClientImplHandler extends SimpleChannelUpstreamHandler {
 			nr_replicas_res msgBody = msg.getMessageLite();
 			String key = msgBody.getKey();
 			String value = msgBody.getValue();
+			System.out.println("[Netty] replication update: " + key + ", " + value);
 			updateKeyReplicaMap(key, value);
 		}
 			break;
@@ -130,7 +131,10 @@ public class RMemcachedClientImplHandler extends SimpleChannelUpstreamHandler {
 	private void updateKeyReplicaMap(String key, String value) {
 		if (value != null && value.length() > 0) {
 			int replicaId = Integer.parseInt(value);
-			keyReplicaMap.put(key, decodeReplicasInfo(replicaId));
+			Vector<Integer> result = decodeReplicasInfo(replicaId);
+			if (result != null) {
+				keyReplicaMap.put(key, result);
+			}
 		}
 	}
 

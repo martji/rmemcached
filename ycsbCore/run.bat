@@ -1,0 +1,1 @@
+java -jar ycsbCore-1.0.0-jar-with-dependencies.jar -load -db com.yahoo.ycsb.db.RMemcached -P workloads/workloadb -threads 1 -s -t
