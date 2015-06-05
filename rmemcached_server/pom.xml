@@ -4,7 +4,7 @@
 
   <groupId>com.sdp.rmemcache</groupId>
   <artifactId>rmemcached_server</artifactId>
-  <version>2.2</version>
+  <version>2.5.20</version>
   <packaging>jar</packaging>
 
   <name>rmemcached_server</name>
