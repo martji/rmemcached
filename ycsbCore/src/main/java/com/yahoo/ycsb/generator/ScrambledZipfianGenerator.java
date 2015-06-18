@@ -126,15 +126,27 @@ public class ScrambledZipfianGenerator extends IntegerGenerator {
 	}
 
 	public static void main(String[] args) {
-		double newzetan = ZipfianGenerator.zetastatic(ITEM_COUNT,
-				ZipfianGenerator.ZIPFIAN_CONSTANT);
-		System.out.println("zetan: " + newzetan);
-		System.exit(0);
+		int itemCount = 10000;
+		int arraySize = 10000;
+//		double newzetan = ZipfianGenerator.zetastatic(itemCount, ZipfianGenerator.ZIPFIAN_CONSTANT);
+//		System.out.println("zetan: " + newzetan);
+//		System.exit(0);
 
-		ScrambledZipfianGenerator gen = new ScrambledZipfianGenerator(10000);
+		int count[] = new int[arraySize];
+//		ScrambledZipfianGenerator gen = new ScrambledZipfianGenerator(100);
+		CounterGenerator transactioninsertkeysequence = new CounterGenerator(itemCount);
+		ZipfianGenerator gen = new ZipfianGenerator(itemCount);
 
-		for (int i = 0; i < 1000000; i++) {
-			System.out.println("" + gen.nextInt());
+		int gap = itemCount / arraySize;
+		for (int i = 0; i < 100*itemCount; i++) {
+			int index = 0;
+			do {
+				index = gen.nextInt();
+			} while (index > transactioninsertkeysequence.lastInt());
+			count[Math.abs(index / gap)] ++;
+		}
+		for (int i = 0; i < arraySize; i++) {
+			System.out.println(i + "\t" + count[i]);
 		}
 	}
 

@@ -20,6 +20,8 @@ import com.sdp.server.ServerNode;
 public class MClient {
 
 	int clientId;
+	int mode = 0;
+	int recordCount = 1;
 	Map<Integer, RMemcachedClientImpl> clientMap;
 	Vector<Integer> clientIdVector;
 	/**
@@ -37,13 +39,20 @@ public class MClient {
 		init(serversMap);
 	}
 	
+	public MClient(int clientId, int mode, int recordCount, Map<Integer, ServerNode> serversMap) {
+		this(clientId);
+		this.mode = mode;
+		this.recordCount = recordCount;
+		init(serversMap);
+	}
+	
 	public MClient(int clientId) {
 		this.clientId = clientId;
 		clientMap = new HashMap<Integer, RMemcachedClientImpl>();
 		keyReplicaMap = new ConcurrentHashMap<String, Vector<Integer>>();
 		clientIdVector = new Vector<Integer>();
 	}
-	
+
 	public void init(Map<Integer, ServerNode> serversMap) {
 		Collection<ServerNode> serverList = serversMap.values();
 		for (ServerNode serverNode : serverList) {
@@ -83,10 +92,29 @@ public class MClient {
 		return vector.get(index);
 	}
 	
+	public int getSliceMem(String key) {
+		int index = key.lastIndexOf("user") + 4;
+		int keyNum = Integer.decode(key.substring(index));
+		
+		int clientsNum = clientIdVector.size();
+		if (clientsNum == 1) {
+			return 0;
+		}
+		int gap = this.recordCount / clientsNum;
+		int leaderIndex = keyNum / gap;
+		leaderIndex = Math.abs(leaderIndex);
+		return clientIdVector.get(leaderIndex);
+	}
+	
 	public String get(String key) {
 		String value = null;
 		RMemcachedClientImpl rmClient;
-		int masterId = gethashMem(key);
+		int masterId;
+		if (mode == 0) {
+			masterId = gethashMem(key);
+		} else {
+			masterId = getSliceMem(key);
+		}
 		
 		if (keyReplicaMap.containsKey(key)) {
 			int replicasId = getOneReplica(key);
@@ -105,7 +133,12 @@ public class MClient {
 	
 	public boolean set(String key, String value) {
 		boolean result = false;
-		int masterId = gethashMem(key);
+		int masterId;
+		if (mode == 0) {
+			masterId = gethashMem(key);
+		} else {
+			masterId = getSliceMem(key);
+		}
 		RMemcachedClientImpl rmClient = clientMap.get(masterId);
 		result = rmClient.set(key, value);
 		return result;

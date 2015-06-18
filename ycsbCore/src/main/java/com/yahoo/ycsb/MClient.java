@@ -41,7 +41,7 @@ import java.util.Vector;
  * @author cooperb
  * 
  */
-class StatusThread extends Thread {
+class MStatusThread extends Thread {
 	Vector<Thread> _threads;
 	String _label;
 	boolean _standardstatus;
@@ -51,8 +51,7 @@ class StatusThread extends Thread {
 	 */
 	public static final long sleeptime = 10000;
 
-	public StatusThread(Vector<Thread> threads, String label,
-			boolean standardstatus) {
+	public MStatusThread(Vector<Thread> threads, String label, boolean standardstatus) {
 		_threads = threads;
 		_label = label;
 		_standardstatus = standardstatus;
@@ -68,12 +67,10 @@ class StatusThread extends Thread {
 		long lasttotalops = 0;
 
 		boolean alldone;
-		SimpleDateFormat format = new SimpleDateFormat(
-				"yyyy-MM-dd HH:mm:ss:SSS");
+		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSS");
 
 		do {
 			alldone = true;
-
 			int totalops = 0;
 
 			// terminate this thread when all the worker threads are done
@@ -82,7 +79,7 @@ class StatusThread extends Thread {
 					alldone = false;
 				}
 
-				ClientThread ct = (ClientThread) t;
+				MClientThread ct = (MClientThread) t;
 				totalops += ct.getOpsDone();
 			}
 
@@ -139,10 +136,10 @@ class StatusThread extends Thread {
  * @author cooperb
  * 
  */
-class ClientThread extends Thread {
+class MClientThread extends Thread {
 	DB _db;
 	boolean _dotransactions;
-	Workload _workload;
+	Vector<Workload> _workloadList;
 	int _opcount;
 	double _target;
 
@@ -152,34 +149,15 @@ class ClientThread extends Thread {
 	Object _workloadstate;
 	Properties _props;
 
-	/**
-	 * Constructor.
-	 * 
-	 * @param db
-	 *            the DB implementation to use
-	 * @param dotransactions
-	 *            true to do transactions, false to insert data
-	 * @param workload
-	 *            the workload to use
-	 * @param threadid
-	 *            the id of this thread
-	 * @param threadcount
-	 *            the total number of threads
-	 * @param props
-	 *            the properties defining the experiment
-	 * @param opcount
-	 *            the number of operations (transactions or inserts) to do
-	 * @param targetperthreadperms
-	 *            target number of operations per thread per ms
-	 */
-	public ClientThread(DB db, boolean dotransactions, Workload workload,
+	
+	public MClientThread(DB db, boolean dotransactions, Vector<Workload> workloadList,
 			int threadid, int threadcount, Properties props, int opcount,
 			double targetperthreadperms) {
 		// TODO: consider removing threadcount and threadid
 		_db = db;
 		_dotransactions = dotransactions;
-		_workload = workload;
-		_opcount = opcount;
+		_workloadList = workloadList;
+		_opcount = opcount*workloadList.size();
 		_opsdone = 0;
 		_target = targetperthreadperms;
 		_threadid = threadid;
@@ -200,56 +178,58 @@ class ClientThread extends Thread {
 			return;
 		}
 
-		try {
-			_workloadstate = _workload.initThread(_props, _threadid, _threadcount);	// ???
-		} catch (WorkloadException e) {
-			e.printStackTrace();
-			e.printStackTrace(System.out);
-			return;
-		}
-
-		try {
-			if ((_target > 0) && (_target <= 1.0)) {
-				sleep(Utils.random().nextInt((int) (1.0 / _target)));
+		for (Workload _workload : _workloadList) {
+			try {
+				_workloadstate = _workload.initThread(_props, _threadid, _threadcount);	// ???
+			} catch (WorkloadException e) {
+				e.printStackTrace();
+				e.printStackTrace(System.out);
+				return;
 			}
-		} catch (InterruptedException e) {}
 
-		try {
-			if (_dotransactions) {
-				long st = System.currentTimeMillis();
-				while (((_opcount == 0) || (_opsdone < _opcount)) && !_workload.isStopRequested()) {
-					if (!_workload.doTransaction(_db, _workloadstate)) {
-						break;
+			try {
+				if ((_target > 0) && (_target <= 1.0)) {
+					sleep(Utils.random().nextInt((int) (1.0 / _target)));
+				}
+			} catch (InterruptedException e) {}
+
+			try {
+				if (_dotransactions) {
+					long st = System.currentTimeMillis();
+					while (((_opcount == 0) || (_opsdone < _opcount)) && !_workload.isStopRequested()) {
+						if (!_workload.doTransaction(_db, _workloadstate)) {
+							break;
+						}
+						_opsdone++;
+						if (_target > 0) {
+							while (System.currentTimeMillis() - st < ((double) _opsdone) / _target) {
+								try {
+									sleep(1);
+								} catch (InterruptedException e) {}
+							}
+						}
 					}
-					_opsdone++;
-					if (_target > 0) {
-						while (System.currentTimeMillis() - st < ((double) _opsdone) / _target) {
-							try {
-								sleep(1);
-							} catch (InterruptedException e) {}
+				} else {
+					long st = System.currentTimeMillis();
+					while (((_opcount == 0) || (_opsdone < _opcount)) && !_workload.isStopRequested()) {
+						if (!_workload.doInsert(_db, _workloadstate)) {
+							break;
+						}
+						_opsdone++;
+						if (_target > 0) {
+							while (System.currentTimeMillis() - st < ((double) _opsdone) / _target) {
+								try {
+									sleep(1);
+								} catch (InterruptedException e) {}
+							}
 						}
 					}
 				}
-			} else {
-				long st = System.currentTimeMillis();
-				while (((_opcount == 0) || (_opsdone < _opcount)) && !_workload.isStopRequested()) {
-					if (!_workload.doInsert(_db, _workloadstate)) {
-						break;
-					}
-					_opsdone++;
-					if (_target > 0) {
-						while (System.currentTimeMillis() - st < ((double) _opsdone) / _target) {
-							try {
-								sleep(1);
-							} catch (InterruptedException e) {}
-						}
-					}
-				}
+			} catch (Exception e) {
+				e.printStackTrace();
+				e.printStackTrace(System.out);
+				System.exit(0);
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			e.printStackTrace(System.out);
-			System.exit(0);
 		}
 
 		try {
@@ -265,7 +245,7 @@ class ClientThread extends Thread {
 /**
  * Main class for executing YCSB.
  */
-public class Client {
+public class MClient {
 
 	public static final String OPERATION_COUNT_PROPERTY = "operationcount";
 
@@ -347,12 +327,9 @@ public class Client {
 	 *             Either failed to write to output stream or failed to close
 	 *             it.
 	 */
-	private static void exportMeasurements(Properties props, int opcount,
-			long runtime) throws IOException {
+	private static void exportMeasurements(Properties props, int opcount, long runtime) throws IOException {
 		MeasurementsExporter exporter = null;
 		try {
-			// if no destination file is provided the results will be written to
-			// stdout
 			OutputStream out;
 			String exportFile = props.getProperty("exportfile");
 			if (exportFile == null) {
@@ -362,9 +339,8 @@ public class Client {
 			}
 
 			// if no exporter is provided the default text one will be used
-			String exporterStr = props
-					.getProperty("exporter",
-							"com.yahoo.ycsb.measurements.exporter.TextMeasurementsExporter");
+			String exporterStr = props.getProperty("exporter", 
+					"com.yahoo.ycsb.measurements.exporter.TextMeasurementsExporter");
 			try {
 				exporter = (MeasurementsExporter) Class.forName(exporterStr)
 						.getConstructor(OutputStream.class).newInstance(out);
@@ -376,8 +352,7 @@ public class Client {
 			}
 
 			exporter.write("OVERALL", "RunTime(ms)", runtime);
-			double throughput = 1000.0 * ((double) opcount)
-					/ ((double) runtime);
+			double throughput = 1000.0 * ((double) opcount) / ((double) runtime);
 			exporter.write("OVERALL", "Throughput(ops/sec)", throughput);
 
 			Measurements.getMeasurements().exportMeasurements(exporter);
@@ -392,21 +367,19 @@ public class Client {
 	public static void main(String[] args) {
 		String dbname;
 		Properties props = new Properties();
-		Properties fileprops = new Properties();
+		Vector<Properties> propsVector = new Vector<Properties>();
+		Vector<Properties> fileprops = new Vector<Properties>();
 		boolean dotransactions = true;
 		int threadcount = 1;
 		int target = 0;
 		boolean status = false;
 		String label = "";
 
-		// parse arguments
 		int argindex = 0;
-
 		if (args.length == 0) {
 			usageMessage();
 			System.exit(0);
 		}
-
 		while (args[argindex].startsWith("-")) {
 			if (args[argindex].compareTo("-threads") == 0) {
 				argindex++;
@@ -457,20 +430,32 @@ public class Client {
 					usageMessage();
 					System.exit(0);
 				}
-				String propfile = args[argindex];
-				argindex++;
-
-				Properties myfileprops = new Properties();
+				
+				int workloadStage = 1;
 				try {
-					myfileprops.load(new FileInputStream(propfile));
-				} catch (IOException e) {
-					System.out.println(e.getMessage());
-					System.exit(0);
+					workloadStage = Integer.decode(args[argindex]);
+					argindex ++;
+				} catch (Exception e) {
+					workloadStage = 1;
 				}
+				for (int i = 0; i < workloadStage; i++) {
+					String propfile = args[argindex];
+					argindex++;
 
-				for (Enumeration e = myfileprops.propertyNames(); e.hasMoreElements();) {
-					String prop = (String) e.nextElement();
-					fileprops.setProperty(prop, myfileprops.getProperty(prop));
+					Properties myfileprops = new Properties();
+					try {
+						myfileprops.load(new FileInputStream(propfile));
+					} catch (IOException e) {
+						System.out.println(e.getMessage());
+						System.exit(0);
+					}
+
+					Properties fileprop = new Properties();
+					for (Enumeration e = myfileprops.propertyNames(); e.hasMoreElements();) {
+						String prop = (String) e.nextElement();
+						fileprop.setProperty(prop, myfileprops.getProperty(prop));
+					}
+					fileprops.add(fileprop);
 				}
 
 			} else if (args[argindex].compareTo("-p") == 0) {
@@ -488,7 +473,6 @@ public class Client {
 				String name = args[argindex].substring(0, eq);
 				String value = args[argindex].substring(eq + 1);
 				props.put(name, value);
-				// System.out.println("["+name+"]=["+value+"]");
 				argindex++;
 			} else {
 				System.out.println("Unknown option " + args[argindex]);
@@ -507,19 +491,17 @@ public class Client {
 		}
 
 		// all params put together
-		for (Enumeration e = props.propertyNames(); e.hasMoreElements();) {
-			String prop = (String) e.nextElement();
-			fileprops.setProperty(prop, props.getProperty(prop));
+		for (Properties p : fileprops) {
+			for (Enumeration e = props.propertyNames(); e.hasMoreElements();) {
+				String prop = (String) e.nextElement();
+				p.setProperty(prop, props.getProperty(prop));
+			}
+			if (!checkRequiredProperties(p)) {
+				System.exit(0);
+			}
 		}
-
-		props = fileprops;
-
-		if (!checkRequiredProperties(props)) {
-			System.exit(0);
-		}
-
-		long maxExecutionTime = Integer.parseInt(props.getProperty(
-				MAX_EXECUTION_TIME, "0"));
+		propsVector = fileprops;
+		props = propsVector.get(0);
 
 		// get number of threads, target and db
 		threadcount = Integer.parseInt(props.getProperty("threadcount", "1"));
@@ -558,19 +540,17 @@ public class Client {
 		Measurements.setProperties(props);
 
 		// load the workload
-		ClassLoader classLoader = Client.class.getClassLoader();
-		Workload workload = null;
+		Vector<Workload> workloadList = new Vector<Workload>();
 		try {
+			ClassLoader classLoader = Client.class.getClassLoader();
 			Class workloadclass = classLoader.loadClass(props.getProperty(WORKLOAD_PROPERTY));
-			workload = (Workload) workloadclass.newInstance();
+			for (Properties p : propsVector) {
+				Workload workload = null;
+				workload = (Workload) workloadclass.newInstance();
+				workload.init(p);
+				workloadList.add(workload);
+			}
 		} catch (Exception e) {
-			e.printStackTrace();
-			e.printStackTrace(System.out);
-			System.exit(0);
-		}
-		try {
-			workload.init(props);
-		} catch (WorkloadException e) {
 			e.printStackTrace();
 			e.printStackTrace(System.out);
 			System.exit(0);
@@ -601,20 +581,19 @@ public class Client {
 				System.exit(0);
 			}
 
-			Thread t = new ClientThread(db, dotransactions, workload, threadid,
+			Thread t = new MClientThread(db, dotransactions, workloadList, threadid,
 					threadcount, props, opcount / threadcount,
 					targetperthreadperms);
 			threads.add(t);
 		}
 
-		StatusThread statusthread = null;
-
+		MStatusThread statusthread = null;
 		if (status) {
 			boolean standardstatus = false;
 			if (props.getProperty("measurementtype", "").compareTo("timeseries") == 0) {
 				standardstatus = true;
 			}
-			statusthread = new StatusThread(threads, label, standardstatus);
+			statusthread = new MStatusThread(threads, label, standardstatus);
 			statusthread.start();
 		}
 
@@ -625,18 +604,15 @@ public class Client {
 		}
 
 		Thread terminator = null;
-
-		if (maxExecutionTime > 0) {
-			terminator = new TerminatorThread(maxExecutionTime, threads, workload);
-			terminator.start();
-		}
+		terminator = new MTerminatorThread(threads, workloadList);
+		terminator.start();
 
 		int opsDone = 0;
 
 		for (Thread t : threads) {
 			try {
 				t.join();
-				opsDone += ((ClientThread) t).getOpsDone();
+				opsDone += ((MClientThread) t).getOpsDone();
 			} catch (InterruptedException e) {
 			}
 		}
@@ -652,7 +628,9 @@ public class Client {
 		}
 
 		try {
-			workload.cleanup();
+			for (Workload workload : workloadList) {
+				workload.cleanup();
+			}
 		} catch (WorkloadException e) {
 			e.printStackTrace();
 			e.printStackTrace(System.out);

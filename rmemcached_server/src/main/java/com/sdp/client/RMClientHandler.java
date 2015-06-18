@@ -112,12 +112,8 @@ public class RMClientHandler extends SimpleChannelUpstreamHandler {
 	@SuppressWarnings("unchecked")
 	private void handleStatsOp(String key, String value) {
 		if (opMap.containsKey(key)) {
-			int replicaId = -1;
-			BaseOperation<Integer> op = (BaseOperation<Integer>) opMap.get(key);
-			if (value != null && value.length() > 0) {
-				replicaId = Integer.parseInt(value);
-			}
-			op.getMcallback().gotdata(replicaId);
+			BaseOperation<String> op = (BaseOperation<String>) opMap.get(key);
+			op.getMcallback().gotdata(value);
 			opMap.remove(key);
 		}
 	}

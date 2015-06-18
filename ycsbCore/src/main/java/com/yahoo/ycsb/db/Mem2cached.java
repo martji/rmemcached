@@ -1,12 +1,13 @@
 package com.yahoo.ycsb.db;
 
 import java.util.*;
+
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
 
-import com.sdp.client.MClient;
+import com.sdp.client.M2Client;
 import com.sdp.common.RegisterHandler;
 import com.sdp.server.ServerNode;
 import com.yahoo.ycsb.DB;
@@ -14,8 +15,8 @@ import com.yahoo.ycsb.DBException;
 import com.yahoo.ycsb.ByteIterator;
 import com.yahoo.ycsb.ByteArrayByteIterator;
 
-public class RMemcached extends DB {
-	MClient client;
+public class Mem2cached extends DB {
+	M2Client client;
 	Properties props;
 	Map<Integer, ServerNode> serversMap;
 
@@ -37,8 +38,7 @@ public class RMemcached extends DB {
 		
 
 		try {
-			int clientId = (int) System.nanoTime();
-			client = new MClient(clientId, mode, recordCount, serversMap);
+			client = new M2Client(mode, recordCount, serversMap);
 		} catch (Exception e) {
 			throw new DBException(e);
 		}
@@ -59,7 +59,7 @@ public class RMemcached extends DB {
 		result.put(key, new ByteArrayByteIterator(values.getBytes()));
 		return OK;
 	}
-
+	
 	public int scan(String table, String startkey, int recordcount,
 			Set<String> fields, Vector<HashMap<String, ByteIterator>> result) {
 		return ERROR;

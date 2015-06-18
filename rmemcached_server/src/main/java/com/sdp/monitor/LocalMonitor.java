@@ -36,7 +36,6 @@ public class LocalMonitor {
                 return cpuCost;
             }
             String[] paras = result.split("\\s+");
-            System.out.println("Port " + port + " cpuCost: " + paras[8]);
             cpuCost = Double.parseDouble(paras[8]);
             
             br.close();

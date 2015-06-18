@@ -143,8 +143,7 @@ public class ZipfianGenerator extends IntegerGenerator {
 	 *            The zipfian constant to use.
 	 */
 	public ZipfianGenerator(long min, long max, double _zipfianconstant) {
-		this(min, max, _zipfianconstant, zetastatic(max - min + 1,
-				_zipfianconstant));
+		this(min, max, _zipfianconstant, zetastatic(max - min + 1, _zipfianconstant));
 	}
 
 	/**

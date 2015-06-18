@@ -13,7 +13,7 @@ import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
 
 import com.sdp.common.RegisterHandler;
-import com.sdp.replicas.LocalHotspots;
+import com.sdp.replicas.LocalSpots;
 import com.sdp.server.MServer;
 import com.sdp.server.MServerHandler;
 import com.sdp.server.ServerNode;
@@ -32,6 +32,7 @@ public class MServerMain {
 	Map<Integer, ServerNode> serversMap;
 	int protocol;
 	String monitorAddress;
+	int threshold;
 	
 	/**
 	 * @param args
@@ -56,9 +57,6 @@ public class MServerMain {
 		MServerHandler mServerHandler = new MServerHandler(server, id, serversMap, protocol);
 		mServerHandler.setMServer(mServer);
 		mServer.init(id, monitorAddress, serversMap, mServerHandler);
-		
-//		int replicaId = mServer.getAReplica();
-//		System.err.println(replicaId);
 	}
 	
 	@SuppressWarnings({ "unchecked" })
@@ -84,6 +82,7 @@ public class MServerMain {
 	
 	@SuppressWarnings("unchecked")
 	public void initLocalHotspot() {
+		LocalSpots.threshold = threshold;
 		String hotspotsPath = System.getProperty("user.dir") + "/config/hotspot.xml";
 		SAXReader sr = new SAXReader();
 		try {
@@ -92,7 +91,7 @@ public class MServerMain {
 			List<Element> childElements = root.elements();
 	        for (Element hotspot : childElements) {
 				 int keynum = Integer.parseInt(hotspot.getText());
-				 LocalHotspots.add(keynum);
+				 LocalSpots.addHot(keynum);
 	        }
 		} catch (DocumentException e) {
 			Log.log.error("wrong hotspot.xml", e);
@@ -105,14 +104,15 @@ public class MServerMain {
 			Properties properties = new Properties();
 			properties.load(new FileInputStream(configPath));
 			monitorAddress = properties.getProperty("monitorAddress").toString();
+			threshold = Integer.decode(properties.getProperty("threshold"));
 			String protocolName = properties.getProperty("consistencyProtocol").toString();
 			if(protocolName.equals("twoPhaseCommit")){
 				protocol = TWOPHASECOMMIT;
 			} else if(protocolName.equals("paxos")){
 				protocol = PAXOS;
-			}else if(protocolName.equals("weak")){
+			} else if(protocolName.equals("weak")){
 				protocol = WEAK;
-			}else{
+			} else{
 				Log.log.error("consistency protocol input error");
 			}
 		} catch (Exception e) {

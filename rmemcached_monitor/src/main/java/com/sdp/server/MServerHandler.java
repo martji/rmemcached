@@ -73,14 +73,13 @@ public class MServerHandler extends SimpleChannelUpstreamHandler {
 		}
 			break;
 		case nr_apply_replica: {
-			int serverNode = msg.getNodeRoute();
-			int replicaId = monitor.chooseReplica(serverNode);
+			String replicas = monitor.chooseReplica();
 			nr_apply_replica msgLite = msg.getMessageLite();
 			String id = msgLite.getKey();
 			
 			nr_apply_replica_res.Builder builder = nr_apply_replica_res.newBuilder();
 			builder.setKey(id);
-			builder.setValue(Integer.toString(replicaId));
+			builder.setValue(replicas);
 			NetMsg send = NetMsg.newMessage();
 			send.setMessageLite(builder);
 			send.setMsgID(EMSGID.nr_apply_replica_res);

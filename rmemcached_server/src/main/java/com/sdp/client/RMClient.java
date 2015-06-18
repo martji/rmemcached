@@ -119,10 +119,10 @@ public class RMClient{
 		connect(host, port);
 	}
 	
-	public int asynGetAReplica() {
+	public String asynGetAReplica() {
 		CountDownLatch latch = new CountDownLatch(1);
-		BaseOperation<Integer> op = new BaseOperation<Integer>(new MCallback<Integer>(latch));
-		MFuture<Integer> future = new MFuture<Integer>(latch, op);
+		BaseOperation<String> op = new BaseOperation<String>(new MCallback<String>(latch));
+		MFuture<String> future = new MFuture<String>(latch, op);
 		String id = Long.toString(System.currentTimeMillis());
 		mClientHandler.addOpMap(id, op);
 		
@@ -139,7 +139,7 @@ public class RMClient{
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		return -1;
+		return null;
 	}
 	
 	public String readFromReplica(String key) {

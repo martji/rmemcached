@@ -133,6 +133,10 @@ public class RMemcachedClientImplHandler extends SimpleChannelUpstreamHandler {
 			int replicaId = Integer.parseInt(value);
 			Vector<Integer> result = decodeReplicasInfo(replicaId);
 			if (result != null) {
+				if (keyReplicaMap.containsKey(key) && result.size() == 1) {
+					keyReplicaMap.remove(key);
+					return;
+				}
 				keyReplicaMap.put(key, result);
 			}
 		}

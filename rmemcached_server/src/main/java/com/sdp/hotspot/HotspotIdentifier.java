@@ -3,12 +3,17 @@ package com.sdp.hotspot;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Set;
+import java.util.Vector;
 import java.util.Map.Entry;
 import java.util.Queue;
 
-import com.sdp.monitor.LocalMonitor;
+import org.jboss.netty.util.internal.ConcurrentHashMap;
 
-public class HotspotIdentifier {
+import com.sdp.monitor.LocalMonitor;
+import com.sdp.replicas.LocalSpots;
+
+public class HotspotIdentifier implements Runnable{
 	Long currenTimestamp;
 	int sliceId;
 	Queue<String> tmpLowQueue = new LinkedList<String>();
@@ -16,12 +21,68 @@ public class HotspotIdentifier {
 	Map<String, RankItem> hotspotMap = new HashMap<String, RankItem>();
 	
 	final int tmpLowQueueSize = 1000;
-	final double cputhreod = 80;
+	final double cpuThreshold = 80;
+	
+	ConcurrentHashMap<String, Integer> countMap = new ConcurrentHashMap<String, Integer>();
+	ConcurrentHashMap<String, Vector<Integer>> replicasIdMap;
+	final int sliceTime = 15*1000;
 	
 	public HotspotIdentifier (Long timestamp) {
 		this.currenTimestamp = timestamp;
 		sliceId = 0;
 		getNextSlice();
+	}
+	
+	public HotspotIdentifier(ConcurrentHashMap<String, Vector<Integer>> replicasIdMap) {
+		this.replicasIdMap = replicasIdMap;
+	}
+	
+	public void run() {
+		while (true) {
+			try {
+				Thread.sleep(sliceTime);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+//			dealColdData();
+			countMap = new ConcurrentHashMap<String, Integer>();
+		}
+	}
+
+	private void dealColdData() {
+		if (replicasIdMap != null && replicasIdMap.size() > 0) {
+			Set<String> hotItems = replicasIdMap.keySet();
+			for (String key : hotItems) {
+				if (!LocalSpots.containsHot(key)) {
+					if (!countMap.containsKey(key) || 
+							countMap.get(key) < LocalSpots.threshold / 2 / replicasIdMap.get(key).size()) {
+						//TODO
+						LocalSpots.addCold(key);
+					}
+				}
+			}
+		}
+	}
+	
+	public void handleRegister(String key) {
+		if (!countMap.containsKey(key)) {
+			countMap.put(key, 0);
+		}
+		int visits = countMap.get(key) + 1;
+		if (visits >= LocalSpots.threshold) {
+			LocalSpots.addHot(key);
+		} else {
+			countMap.put(key, visits);
+		}
+	}
+	
+	public void resetVisit(String key) {
+		if (countMap.containsKey(key)) {
+			int count = countMap.get(key);
+			int size = replicasIdMap.get(key).size();
+			count = count * (size - 1) /  size;
+			countMap.put(key, count);
+		}
 	}
 	
 	public void handleRegister(Long timestamp, String key) {
@@ -65,7 +126,7 @@ public class HotspotIdentifier {
 					}
 				}
 				
-				if (LocalMonitor.getInstance().cpuCost > cputhreod) {
+				if (LocalMonitor.getInstance().cpuCost > cpuThreshold) {
 					String hotKey = null;
 					Double weight = 0.0;
 					for (Entry<String, Integer> e : highMap.entrySet()) {
@@ -89,5 +150,4 @@ public class HotspotIdentifier {
 		currenTimestamp += 5*1000;
 		sliceId += 1;
 	}
-	
 }

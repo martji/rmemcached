@@ -3,15 +3,19 @@
 # https://github.com/brianfrankcooper/YCSB/wiki/Core-Properties
 # java -jar ycsbCore-1.0.0-jar-with-dependencies.jar -P ../workloads/workloada -s -t
 
+# for mem2cached : mode = 0,1,2 (0原始hash方式，1数据分片，2随机选取一个节点)
+# for rmemcached : mode = 0,1 (0原始hash方式，1数据分片)
+
 db=com.yahoo.ycsb.db.RMemcached
 workload=com.yahoo.ycsb.workloads.CoreWorkload
+insertorder=direct
 
 threadcount=1
 recordcount=10000
-operationcount=5000000
+operationcount=25000000
 
 fieldcount=1
-fieldlength=64
+fieldlength=16
 readallfields=true
 table=usertable
 
@@ -20,12 +24,11 @@ updateproportion=0
 scanproportion=0
 insertproportion=0
 
-requestdistribution=hotspot
-hotspotdatafraction=0.0001
-hotspotopnfraction=0.9
+requestdistribution=zipfian
 
-maxexecutiontime=100
+maxexecutiontime=2000
 histogram.buckets=100
 
 rmemcached.path=/config/serverlist.xml
+mode=1
 

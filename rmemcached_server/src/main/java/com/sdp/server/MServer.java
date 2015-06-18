@@ -113,7 +113,7 @@ public class MServer {
 		System.out.println("[Netty] server start.");
 	}
 
-	public int getAReplica() {
+	public String getAReplica() {
 		return monitorClient.asynGetAReplica();
 	}
 

@@ -257,8 +257,7 @@ public class RMemcachedClientImpl implements RMemcachedClient{
 	}
 	
 	public void register2R(String key) {
-//		if (need2Register()) {
-		if (true) {
+		if (need2Register()) {
 			nr_register.Builder builder = nr_register.newBuilder();
 			builder.setKey(key);
 			builder.setTime(System.nanoTime());

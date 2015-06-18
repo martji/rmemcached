@@ -27,7 +27,6 @@ import com.yahoo.ycsb.generator.ConstantIntegerGenerator;
 import com.yahoo.ycsb.generator.HotspotIntegerGenerator;
 import com.yahoo.ycsb.generator.HistogramGenerator;
 import com.yahoo.ycsb.generator.IntegerGenerator;
-import com.yahoo.ycsb.generator.ScrambledZipfianGenerator;
 import com.yahoo.ycsb.generator.SkewedLatestGenerator;
 import com.yahoo.ycsb.generator.UniformIntegerGenerator;
 import com.yahoo.ycsb.generator.ZipfianGenerator;
@@ -339,6 +338,7 @@ public class CoreWorkload extends Workload {
 	 * any operations are started.
 	 */
 	public void init(Properties p) throws WorkloadException {
+		maxExecutionTime = Integer.decode(p.getProperty("maxexecutiontime", "100"));
 		table = p.getProperty(TABLENAME_PROPERTY, TABLENAME_PROPERTY_DEFAULT);
 
 		fieldcount = Integer.parseInt(p.getProperty(FIELD_COUNT_PROPERTY,
@@ -433,15 +433,11 @@ public class CoreWorkload extends Workload {
 			// keyspace doesn't change from the perspective of the scrambled
 			// zipfian generator
 
-			int opcount = Integer.parseInt(p
-					.getProperty(Client.OPERATION_COUNT_PROPERTY));
-			int expectednewkeys = (int) (((double) opcount) * insertproportion * 2.0); // 2
-																						// is
-																						// fudge
-																						// factor
-
-			keychooser = new ScrambledZipfianGenerator(recordcount
-					+ expectednewkeys);
+			int opcount = Integer.parseInt(p.getProperty(Client.OPERATION_COUNT_PROPERTY));
+			int expectednewkeys = (int) (((double) opcount) * insertproportion * 2.0); // 2 is fudge factor
+//			keychooser = new ScrambledZipfianGenerator(recordcount + expectednewkeys);
+			keychooser = new ZipfianGenerator(recordcount + expectednewkeys);
+			
 		} else if (requestdistrib.compareTo("latest") == 0) {
 			keychooser = new SkewedLatestGenerator(transactioninsertkeysequence);
 		} else if (requestdistrib.equals("hotspot")) {

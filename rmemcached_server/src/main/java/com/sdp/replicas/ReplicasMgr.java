@@ -1,7 +1,12 @@
 package com.sdp.replicas;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Vector;
@@ -12,6 +17,9 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.util.internal.ConcurrentHashMap;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import com.sdp.client.RMClient;
 import com.sdp.common.EMSGID;
 import com.sdp.example.Log;
@@ -57,7 +65,8 @@ public class ReplicasMgr {
 	ConcurrentHashMap<Integer, Map<String, Integer>> clientKeyMap = new ConcurrentHashMap<Integer, Map<String, Integer>>();
 	
 	public ReplicasMgr() {
-		hotspotIdentifier = new HotspotIdentifier(System.currentTimeMillis());
+		hotspotIdentifier = new HotspotIdentifier(replicasIdMap);
+		new Thread(hotspotIdentifier).start();
 	}
 	
 	public ReplicasMgr(int serverId, Map<Integer, ServerNode> serversMap, MServer mServer, int protocol) {
@@ -198,64 +207,128 @@ public class ReplicasMgr {
 	 * collect the register info
 	 */
 	private void handleRegister(Channel channel, String key) {
-		// TODO
-		if (LocalHotspots.contains(key)) {
-			if (!replicasIdMap.containsKey(key)) {
-				int replicaId = mServer.getAReplica();
-				if (replicaId != -1) {
-					boolean result = createReplica(key, replicaId);
-					if (result) {	// create replication for key succeed
-						Vector<Integer> vector = new Vector<Integer>();
-						vector.add(serverId);
-						vector.add(replicaId);
-						replicasIdMap.put(key, vector);
-						infoAllClient(key);
+		hotspotIdentifier.handleRegister(key);
+		if (LocalSpots.containsHot(key)) {
+			System.out.println("[INFO] new hotspot: " + key);
+			String replicasInfo = mServer.getAReplica();
+			int replicaId = getReplicaId(replicasInfo, key);
+			if (replicaId == -1) {
+				System.out.println("[INFO] no available instance to create replication.");
+				return;
+			}
+			boolean result = createReplica(key, replicaId);
+			if (result) {
+				Vector<Integer> vector = null;
+				if (!replicasIdMap.containsKey(key)) {
+					vector = new Vector<Integer>();
+					vector.add(serverId);
+					vector.add(replicaId);
+					replicasIdMap.put(key, vector);
+
+				} else {
+					if (!replicasIdMap.get(key).contains(replicaId)) {
+						replicasIdMap.get(key).add(replicaId);
+						vector = replicasIdMap.get(key);
 					}
 				}
-			} else {
-//				Long timestamp = System.currentTimeMillis();
-//				hotspotIdentifier.handleRegister(timestamp, key);
+				infoAllClient(channel, key, vector);
+				LocalSpots.removeHot(key);
+				hotspotIdentifier.resetVisit(key);
 			}
+		} else if (LocalSpots.containsCold(key)) {
+			int replicaId = replicasIdMap.get(key).size()-1;
+			replicasIdMap.get(key).remove(replicaId);
+			System.out.println("[INFO] remove key: " + key + ", replicaId: " + replicaId);
+			infoAllClient(channel, key, replicasIdMap.get(key));
+			LocalSpots.removeCold(key);
+			if (replicasIdMap.get(key).size() == 1) {
+				replicasIdMap.remove(key);
+			}
+		} else if (replicasIdMap.containsKey(key)
+				&& !keyClientMap.get(key).contains(channel)) {
+			keyClientMap.get(key).add(channel);
+			int replicaId = encodeReplicasInfo(replicasIdMap.get(key));
+			nr_replicas_res.Builder builder = nr_replicas_res.newBuilder();
+			builder.setKey(key);
+			builder.setValue(Integer.toString(replicaId));
+			NetMsg msg = NetMsg.newMessage();
+			msg.setMessageLite(builder);
+			msg.setMsgID(EMSGID.nr_replicas_res);
+			channel.write(msg);
+		}
+	}
+	
+	private int getReplicaId(String replicasInfo, String key) {
+		if (replicasInfo == null || replicasInfo.length() == 0) {
+			return -1;
+		}
+		Gson gson = new GsonBuilder().enableComplexMapKeySerialization().create();
+		Map<Integer, Double> cpuCostMap = gson.fromJson(replicasInfo, 
+				new TypeToken<Map<Integer, Double>>() {}.getType());
+		List<Map.Entry<Integer, Double>> list = null;
+		list = new ArrayList<Entry<Integer, Double>>(cpuCostMap.entrySet());
+		Collections.sort(list, new Comparator<Entry<Integer, Double>>() {
+			public int compare(Entry<Integer, Double> mapping1,
+					Entry<Integer, Double> mapping2) {
+				return mapping1.getValue().compareTo(mapping2.getValue());
+			}
+		});
+		
+		int replicaId = -1;
+		HashSet<String> hosts = new HashSet<String>();
+		HashSet<Integer> currentReplicas = new HashSet<Integer>();
+		if (replicasIdMap.containsKey(key)) {
+			currentReplicas = new HashSet<Integer>(replicasIdMap.get(key));
+			for (int id : currentReplicas) {
+				hosts.add(serversMap.get(id).getHost());
+			}
+		} else {
+			currentReplicas.add(serverId);
+			hosts.add(serversMap.get(serverId).getHost());
 		}
 		
+		for (int i = 0; i < list.size(); i++) {
+			int tmp = list.get(i).getKey();
+			if (!currentReplicas.contains(tmp)) {
+				if (!hosts.contains(serversMap.get(tmp).getHost())) {
+					return tmp;
+				} else if (replicaId == -1) {
+					replicaId = tmp;
+				}
+			}
+		}
+		return replicaId;
+	}
+
+	private void infoAllClient(Channel channel, String key, Vector<Integer> vector) {
 		if (!keyClientMap.containsKey(key)) {
 			keyClientMap.put(key, new Vector<Channel>());
 		}
 		if (!keyClientMap.get(key).contains(channel)) {
 			keyClientMap.get(key).add(channel);
-			int replicaId = 0;
-			if (replicasIdMap.containsKey(key)) {
-				Vector<Integer> replicas = replicasIdMap.get(key);
-				replicaId = encodeReplicasInfo(replicas);
-			}
-			if (replicaId > 0) {
-				System.out.println("[Netty] new key register: " + key);
-				nr_replicas_res.Builder builder = nr_replicas_res.newBuilder();
-				builder.setKey(key);
-				builder.setValue(Integer.toString(replicaId));
-				NetMsg msg = NetMsg.newMessage();
-				msg.setMessageLite(builder);
-				msg.setMsgID(EMSGID.nr_replicas_res);
-				channel.write(msg);
+		}
+		Vector<Channel> clients = keyClientMap.get(key);
+		Vector<Integer> replicas = vector;
+		Vector<Channel> tmp = new Vector<Channel>();
+		tmp.addAll(clients);
+		for (Channel mchannel: tmp) {
+			if (!mchannel.isConnected()) {
+				clients.remove(mchannel);
 			}
 		}
-	}
-	
-	private void infoAllClient(String key) {
-		Vector<Channel> clients = keyClientMap.get(key);
-		if (clients == null || clients.size() == 0) {
+		if (replicas == null || replicas.size() == 0) {
+			System.out.println("[ERROR] replication information lost.");
 			return;
 		}
-		
-		int replicaId = encodeReplicasInfo(replicasIdMap.get(key));
+		int replicaId = encodeReplicasInfo(replicas);
 		nr_replicas_res.Builder builder = nr_replicas_res.newBuilder();
 		builder.setKey(key);
 		builder.setValue(Integer.toString(replicaId));
 		NetMsg msg = NetMsg.newMessage();
 		msg.setMessageLite(builder);
 		msg.setMsgID(EMSGID.nr_replicas_res);
-		for (Channel channel: clients) {
-			channel.write(msg);
+		for (Channel mchannel: clients) {
+			mchannel.write(msg);
 		}
 	}
 
@@ -284,18 +357,10 @@ public class ReplicasMgr {
 		
 		String value = (String) mc.get(key);
 		if (value == null || value.length() == 0) {
+			System.out.println("[ERROR] no value fo this key: " + key);
 			return false;
 		}
 		boolean out = replicaClient.recoveryAReplica(key, value);
-		if (out) {
-			if (replicasIdMap.containsKey(key)) {
-				replicasIdMap.get(key).add(replicaId);
-			} else {
-				Vector<Integer> vector = new Vector<Integer>();
-				vector.add(replicaId);
-				replicasIdMap.put(key, vector);
-			}
-		}
 		return out;
 	}
 

@@ -76,23 +76,14 @@ public class Memcached extends DB {
 	 *            A HashMap of field/value pairs for the result
 	 * @return Zero on success, a non-zero error code on error or "not found".
 	 */
-	@SuppressWarnings("unchecked")
 	public int read(String table, String key, Set<String> fields, HashMap<String, ByteIterator> result) {
-		HashMap<String, byte[]> values = (HashMap<String, byte[]>) client.get(table + ":" + key);
+		String values = (String) client.get(table + ":" + key);
 		if (values == null)
 			return NOT_FOUND;
-		if (values.keySet().isEmpty())
+		if (values.length() == 0)
 			return NOT_FOUND;
-		if (fields == null)
-			fields = values.keySet();
 
-		for (String k : fields) {
-			byte[] v = values.get(k);
-			if (v == null || v.length == 0)
-				return NOT_FOUND;
-			result.put(k, new ByteArrayByteIterator(v));
-		}
-
+		result.put(key, new ByteArrayByteIterator(values.getBytes()));
 		return OK;
 	}
 
@@ -139,7 +130,7 @@ public class Memcached extends DB {
 			new_values.put(k, values.get(k).toArray());
 		}
 
-		OperationFuture<Boolean> f = client.set(table + ":" + key, 3600, new_values);
+		OperationFuture<Boolean> f = client.set(table + ":" + key, 3600*24*15, new_values.toString());
 
 		try {
 			return f.get() ? OK : ERROR;

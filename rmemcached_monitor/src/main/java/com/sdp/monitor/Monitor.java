@@ -13,6 +13,8 @@ import java.util.Queue;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.util.internal.ConcurrentHashMap;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.sdp.common.EMSGID;
 import com.sdp.messageBody.CtsMsg.nr_cpuStats;
 import com.sdp.netty.NetMsg;
@@ -107,6 +109,15 @@ public class Monitor extends Thread {
 			}
 		}
 		return replicaNum;
+	}
+	
+	public String chooseReplica() {
+		if (medianCpuCostMap.isEmpty()) {
+			return "";
+		}
+		Gson gson = new GsonBuilder().enableComplexMapKeySerialization().create();
+		String result = gson.toJson(medianCpuCostMap);
+		return result;
 	}
 
 	public double getData(double data) {
