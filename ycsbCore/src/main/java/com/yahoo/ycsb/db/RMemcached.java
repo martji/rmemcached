@@ -6,7 +6,7 @@ import org.dom4j.DocumentException;
 import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
 
-import com.sdp.client.MClient;
+import com.sdp.client.RMClient;
 import com.sdp.common.RegisterHandler;
 import com.sdp.server.ServerNode;
 import com.yahoo.ycsb.DB;
@@ -15,19 +15,22 @@ import com.yahoo.ycsb.ByteIterator;
 import com.yahoo.ycsb.ByteArrayByteIterator;
 
 public class RMemcached extends DB {
-	MClient client;
+	RMClient client;
 	Properties props;
 	Map<Integer, ServerNode> serversMap;
 
 	public static final int OK = 0;
 	public static final int ERROR = -1;
 	public static final int NOT_FOUND = -2;
+	
+	private int setMode = 0;
 
 	public void init() throws DBException {
 		props = getProperties();
 		String serversPath = props.getProperty("rmemcached.path");
 		int recordCount = Integer.decode(props.getProperty("recordcount"));
 		int mode = Integer.decode(props.getProperty("mode"));
+		this.setMode = Integer.decode(props.getProperty("setmode", "0"));
 		if (serversPath == null) {
 			throw new DBException("rmemcached.path param must be specified");
 		}
@@ -38,7 +41,8 @@ public class RMemcached extends DB {
 
 		try {
 			int clientId = (int) System.nanoTime();
-			client = new MClient(clientId, mode, recordCount, serversMap);
+			System.out.println("clientId: " + clientId);
+			client = new RMClient(clientId, mode, recordCount, serversMap);
 		} catch (Exception e) {
 			throw new DBException(e);
 		}
@@ -71,7 +75,22 @@ public class RMemcached extends DB {
 			new_values.put(k, values.get(k).toArray());
 		}
 
-		Boolean f = client.set(table + ":" + key, new_values.toString());
+		Boolean f = false;
+		switch (setMode) {
+			case 0:
+				f = client.set2R(table + ":" + key, new_values.toString());
+				break;
+			case 1:
+				f = client.synchronousSet(table + ":" + key, new_values.toString());
+				break;
+			case 2:
+				f = client.asynSet(table + ":" + key, new_values.toString());
+				break;
+			default:
+				f = client.set(table + ":" + key, new_values.toString());
+				break;
+		}
+		
 		try {
 			return f ? OK : ERROR;
 		} catch (Exception e) {
@@ -100,9 +119,10 @@ public class RMemcached extends DB {
 	        for (Element server : childElements) {
 				 int id = Integer.parseInt(server.elementText("id"));
 				 String host = server.elementText("host");
-				 int port = Integer.parseInt(server.elementText("port"));
+				 int rport = Integer.parseInt(server.elementText("rport"));
+				 int wport = Integer.parseInt(server.elementText("wport"));
 				 int memcachedPort = Integer.parseInt(server.elementText("memcached"));
-				 ServerNode serverNode = new ServerNode(id, host, port, memcachedPort);
+				 ServerNode serverNode = new ServerNode(id, host, rport, wport, memcachedPort);
 				 serversMap.put(id, serverNode);
 	        }
 		} catch (DocumentException e) {

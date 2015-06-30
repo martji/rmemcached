@@ -22,7 +22,8 @@ import com.sdp.netty.MEncoder;
  */
 
 public class MServer {
-	MServerHandler mServerHandler;
+	MServerHandler wServerHandler;
+	MServerHandler rServerHandler;
 	RMClient monitorClient;
 
 	public MServer() {}
@@ -36,21 +37,25 @@ public class MServer {
 	public void init(int id, String monitorAddress, Map<Integer, ServerNode> serversMap, int protocol) {
 		ServerNode serverNode = serversMap.get(id);
 		String server = serverNode.getServer();
-		mServerHandler = new MServerHandler(server, id, serversMap, protocol);
-		int port = serverNode.getPort();
-		initRServer(port);
+		wServerHandler = new MServerHandler(server, id, serversMap, protocol);
+		rServerHandler = new MServerHandler(server, id, serversMap, protocol);
+		int rport = serverNode.getRPort();
+		int wport = serverNode.getWPort();
+		initRServer(rport, wport);
 		registerMonitor(id, monitorAddress, serversMap.get(id).getMemcached());
 	}
 
-	public void init(int id, String monitorAddress,
-			Map<Integer, ServerNode> serversMap, MServerHandler mServerHandler) {
-		this.mServerHandler = mServerHandler;
+	public void init(int id, String monitorAddress, Map<Integer, ServerNode> serversMap, 
+			MServerHandler wServerHandler, MServerHandler rServerHandler) {
+		this.wServerHandler = wServerHandler;
+		this.rServerHandler = rServerHandler;
 		ServerNode serverNode = serversMap.get(id);
-		int port = serverNode.getPort();
-		initRServer(port);
-		mServerHandler.replicasMgr.initThread();
+		int rport = serverNode.getRPort();
+		int wport = serverNode.getWPort();
+		initRServer(rport, wport);
+		wServerHandler.replicasMgr.initThread();
+		rServerHandler.replicasMgr.initThread();
 		registerMonitor(id, monitorAddress, serversMap.get(id).getMemcached());
-		
 	}
 	
 	/**
@@ -100,16 +105,25 @@ public class MServer {
 		}).start();
 	}
 
-	public void initRServer(int port) {
-		ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
+	public void initRServer(int rport, int wport) {
+		ServerBootstrap wbootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
 				Executors.newCachedThreadPool(),
 				Executors.newCachedThreadPool()));
-
-		bootstrap.setPipelineFactory(new MServerPipelineFactory(mServerHandler));
-		bootstrap.setOption("child.tcpNoDelay", true);
-		bootstrap.setOption("child.keepAlive", true);
-		bootstrap.setOption("reuseAddress", true);
-		bootstrap.bind(new InetSocketAddress(port));
+		wbootstrap.setPipelineFactory(new MServerPipelineFactory(wServerHandler));
+		wbootstrap.setOption("child.tcpNoDelay", true);
+		wbootstrap.setOption("child.keepAlive", true);
+		wbootstrap.setOption("reuseAddress", true);
+		wbootstrap.bind(new InetSocketAddress(wport));
+		
+		ServerBootstrap rbootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
+				Executors.newCachedThreadPool(),
+				Executors.newCachedThreadPool()));
+		rbootstrap.setPipelineFactory(new MServerPipelineFactory(rServerHandler));
+		rbootstrap.setOption("child.tcpNoDelay", true);
+		rbootstrap.setOption("child.keepAlive", true);
+		rbootstrap.setOption("reuseAddress", true);
+		rbootstrap.bind(new InetSocketAddress(rport));
+		
 		System.out.println("[Netty] server start.");
 	}
 

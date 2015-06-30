@@ -44,7 +44,7 @@ import com.sdp.server.ServerNode;
 
 public class RMemcachedClientImpl implements RMemcachedClient{
 
-	ClientBootstrap bootstrap;
+	
 	StringBuffer message = new StringBuffer();
 	ConcurrentMap<String, Vector<Integer>> keyReplicaMap = new ConcurrentHashMap<String, Vector<Integer>>();
 	
@@ -52,50 +52,67 @@ public class RMemcachedClientImpl implements RMemcachedClient{
 	ExecutorService threadPool = Executors.newCachedThreadPool();
 	
 	int clientId = 0;
-	Channel mChannel = null;
-	RMemcachedClientImplHandler mClientHandler;
+	
+	ClientBootstrap rbootstrap;
+	Channel rmChannel = null;
+	RMemcachedClientImplHandler rmClientHandler;
+	ClientBootstrap wbootstrap;
+	Channel wmChannel = null;
+	RMemcachedClientImplHandler wmClientHandler;
+	
 	MemcachedClient client;
+	
 	private static int timeout = 2500;
 	private static int exptime = 60*60*24*10;
 
-	public RMemcachedClientImpl(ServerNode serverNode, ConcurrentMap<String, Vector<Integer>> keyReplicaMap) {
-		int serverId = serverNode.getId();
+	public RMemcachedClientImpl(int clientId, ServerNode serverNode, ConcurrentMap<String, Vector<Integer>> keyReplicaMap) {
 		String host = serverNode.getHost();
-		int port = serverNode.getPort();
+		int rport = serverNode.getRPort();
+		int wport = serverNode.getWPort();
 		int memcachedPort = serverNode.getMemcached();
 		
-		this.clientId = serverId;
+		this.clientId = clientId;
 		this.keyReplicaMap = keyReplicaMap;
-		init(serverId, host, port, memcachedPort);
+		init(clientId, host, rport, wport, memcachedPort);
 	}
 
 	public void init() {
-		init(0, "127.0.0.1", 8080, 20000);
+		init(0, "127.0.0.1", 8080, 8090, 20000);
 	}
 
 	public void shutdown() {
-		mChannel.close();
-		bootstrap.releaseExternalResources();
+		rmChannel.close();
+		rbootstrap.releaseExternalResources();
+		wmChannel.close();
+		wbootstrap.releaseExternalResources();
+		
 		client.shutdown();
 	}
 	
-	public void init(int clientNode, String host, int port, int memcachedPort) {
-		initRConnect(clientNode, host, port);
+	public void init(int clientNode, String host, int rport, int wport, int memcachedPort) {
+		initRConnect(clientNode, host, rport, wport);
 		initSpyConnect(host, memcachedPort);
 	}
 
-	public void initRConnect(int clientNode, String host, int port) {
+	public void initRConnect(int clientNode, String host, int rport, int wport) {
 		try {
-			bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(
+			rbootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(
 					Executors.newCachedThreadPool(),
 					Executors.newCachedThreadPool()));
-
-			mClientHandler = new RMemcachedClientImplHandler(clientNode, message, keyReplicaMap);
-			bootstrap.setPipelineFactory(new MClientPipelineFactory(mClientHandler));
-
-			ChannelFuture future = bootstrap.connect(new InetSocketAddress(host, port)).sync();
-			while (!future.isDone()) {}
-			mChannel = future.getChannel();
+			rmClientHandler = new RMemcachedClientImplHandler(clientNode, message, keyReplicaMap);
+			rbootstrap.setPipelineFactory(new MClientPipelineFactory(rmClientHandler));
+			ChannelFuture rfuture = rbootstrap.connect(new InetSocketAddress(host, rport)).sync();
+			while (!rfuture.isDone()) {}
+			rmChannel = rfuture.getChannel();
+			
+			wbootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(
+					Executors.newCachedThreadPool(),
+					Executors.newCachedThreadPool()));
+			wmClientHandler = new RMemcachedClientImplHandler(clientNode, message, keyReplicaMap);
+			wbootstrap.setPipelineFactory(new MClientPipelineFactory(wmClientHandler));
+			ChannelFuture wfuture = wbootstrap.connect(new InetSocketAddress(host, wport)).sync();
+			while (!wfuture.isDone()) {}
+			wmChannel = wfuture.getChannel();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -141,7 +158,7 @@ public class RMemcachedClientImpl implements RMemcachedClient{
 		BaseOperation<String> op = new BaseOperation<String>(new MCallback<String>(latch));
 		MFuture<String> future = new MFuture<String>(latch, op);
 		String id = Long.toString(System.currentTimeMillis());
-		mClientHandler.addOpMap(id + ":" + key, op);
+		rmClientHandler.addOpMap(id + ":" + key, op);
 		
 		nr_read.Builder builder = nr_read.newBuilder();
 		builder.setKey(key);
@@ -150,7 +167,7 @@ public class RMemcachedClientImpl implements RMemcachedClient{
 		msg.setMessageLite(builder);
 		msg.setMsgID(EMSGID.nr_read);
 		
-		mChannel.write(msg);
+		rmChannel.write(msg);
 		
 		try {
 			return future.get(timeout , TimeUnit.MILLISECONDS);
@@ -160,10 +177,14 @@ public class RMemcachedClientImpl implements RMemcachedClient{
 		return null;
 	}
 
+	public boolean synchronousSet(String key, String value) {
+		return set2M(key, value);
+	}
+	
 	public boolean set(String key, String value) {
 		boolean result = false;
 		if (keyReplicaMap.containsKey(key)) {
-			result = set2R(key, value);
+			result = asynSet2R(key, value);
 		} else {
 			result = set2M(key, value);
 		}
@@ -180,12 +201,13 @@ public class RMemcachedClientImpl implements RMemcachedClient{
 		return false;
 	}
 	
-	public boolean aysnSet2R(String key, String value) {
+	public boolean asynSet2R(String key, String value) {
 		CountDownLatch latch = new CountDownLatch(1);
 		BaseOperation<Boolean> op = new BaseOperation<Boolean>(new MCallback<Boolean>(latch));
 		MFuture<Boolean> future = new MFuture<Boolean>(latch, op);
 		String id = Long.toString(System.currentTimeMillis());
-		mClientHandler.addOpMap(id + ":" + key, op);
+		key = id + ":" + key;
+		wmClientHandler.addOpMap(key, op);
 		
 		nr_write.Builder builder = nr_write.newBuilder();
 		builder.setKey(key);
@@ -195,14 +217,13 @@ public class RMemcachedClientImpl implements RMemcachedClient{
 		msg.setMessageLite(builder);
 		msg.setMsgID(EMSGID.nr_write);
 		
-		mChannel.write(msg);
+		wmChannel.write(msg);
 		
 		try {
 			return future.get(timeout , TimeUnit.MILLISECONDS);
 		} catch (Exception e) {
-			e.printStackTrace();
+			return false;
 		}
-		return false;
 	}
 	
 	public boolean set2R(String key, String value) {
@@ -218,12 +239,12 @@ public class RMemcachedClientImpl implements RMemcachedClient{
 		msg.setMessageLite(builder);
 		msg.setMsgID(EMSGID.nr_write);
 		
-		mClientHandler.requestList.put(id, msg);
-		mClientHandler.queue.push(id);
+		rmClientHandler.requestList.put(id, msg);
+		rmClientHandler.queue.push(id);
 
 		synchronized (id) {
-			synchronized (mClientHandler.lock) {
-				mClientHandler.lock.notify();
+			synchronized (rmClientHandler.lock) {
+				rmClientHandler.lock.notify();
 			}
 			try {
 				id.wait();
@@ -265,7 +286,7 @@ public class RMemcachedClientImpl implements RMemcachedClient{
 			msg.setNodeRoute(clientId);
 			msg.setMessageLite(builder);
 			msg.setMsgID(EMSGID.nr_register);
-			mChannel.write(msg);
+			rmChannel.write(msg);
 		}
 	}
 	

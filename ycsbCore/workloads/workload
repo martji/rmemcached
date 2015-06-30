@@ -5,13 +5,14 @@
 
 # for mem2cached : mode = 0,1,2 (0原始hash方式，1数据分片，2随机选取一个节点)
 # for rmemcached : mode = 0,1 (0原始hash方式，1数据分片)
+# for rmemcached : setmode = 0,1,2 (0 for set, 1 for synchronousSet, 2 for asynSet)
 
 db=com.yahoo.ycsb.db.RMemcached
 workload=com.yahoo.ycsb.workloads.CoreWorkload
 insertorder=direct
 
 threadcount=1
-recordcount=10000
+recordcount=1000
 operationcount=25000000
 
 fieldcount=1
@@ -19,16 +20,21 @@ fieldlength=16
 readallfields=true
 table=usertable
 
-readproportion=1.0
-updateproportion=0
+readproportion=0.5
+updateproportion=0.5
 scanproportion=0
 insertproportion=0
 
-requestdistribution=zipfian
+requestdistribution=hotspot
+hotspotdatafraction=0.01
+hotspotopnfraction=0.9
 
-maxexecutiontime=2000
+maxexecutiontime=100
+#measurementtype=other
 histogram.buckets=100
 
+
 rmemcached.path=/config/serverlist.xml
-mode=1
+mode=0
+setmode=0
 

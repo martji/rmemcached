@@ -12,6 +12,7 @@ import org.jboss.netty.util.internal.ConcurrentHashMap;
 
 import com.sdp.monitor.LocalMonitor;
 import com.sdp.replicas.LocalSpots;
+import com.sdp.replicas.ReplicasMgr;
 
 public class HotspotIdentifier implements Runnable{
 	Long currenTimestamp;
@@ -25,6 +26,7 @@ public class HotspotIdentifier implements Runnable{
 	
 	ConcurrentHashMap<String, Integer> countMap = new ConcurrentHashMap<String, Integer>();
 	ConcurrentHashMap<String, Vector<Integer>> replicasIdMap;
+	ReplicasMgr replicasMgr;
 	final int sliceTime = 15*1000;
 	
 	public HotspotIdentifier (Long timestamp) {
@@ -33,10 +35,11 @@ public class HotspotIdentifier implements Runnable{
 		getNextSlice();
 	}
 	
-	public HotspotIdentifier(ConcurrentHashMap<String, Vector<Integer>> replicasIdMap) {
-		this.replicasIdMap = replicasIdMap;
+	public HotspotIdentifier(ReplicasMgr replicasMgr) {
+		this.replicasMgr = replicasMgr;
+		this.replicasIdMap = this.replicasMgr.replicasIdMap;
 	}
-	
+
 	public void run() {
 		while (true) {
 			try {
@@ -44,7 +47,13 @@ public class HotspotIdentifier implements Runnable{
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-//			dealColdData();
+			
+//			for (String key : LocalSpots.hotspots) {
+//				System.out.println(key + ": " + countMap.get(key));
+//			}
+			replicasMgr.dealHotData();
+			dealColdData();
+
 			countMap = new ConcurrentHashMap<String, Integer>();
 		}
 	}
@@ -55,12 +64,12 @@ public class HotspotIdentifier implements Runnable{
 			for (String key : hotItems) {
 				if (!LocalSpots.containsHot(key)) {
 					if (!countMap.containsKey(key) || 
-							countMap.get(key) < LocalSpots.threshold / 2 / replicasIdMap.get(key).size()) {
-						//TODO
+							countMap.get(key) < LocalSpots.coldThreshold) { // LocalSpots.threshold / 2 / replicasIdMap.get(key).size()
 						LocalSpots.addCold(key);
 					}
 				}
 			}
+			replicasMgr.dealColdData();
 		}
 	}
 	
@@ -69,8 +78,9 @@ public class HotspotIdentifier implements Runnable{
 			countMap.put(key, 0);
 		}
 		int visits = countMap.get(key) + 1;
-		if (visits >= LocalSpots.threshold) {
+		if (visits >= LocalSpots.threshold && !LocalSpots.containsHot(key)) {
 			LocalSpots.addHot(key);
+			countMap.put(key, visits);
 		} else {
 			countMap.put(key, visits);
 		}

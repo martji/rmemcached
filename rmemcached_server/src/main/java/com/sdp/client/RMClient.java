@@ -51,7 +51,7 @@ public class RMClient{
 	public RMClient(ServerNode serverNode) {
 		int serverId = serverNode.getId();
 		String host = serverNode.getHost();
-		int port = serverNode.getPort();
+		int port = serverNode.getRPort();
 		
 		this.serverId = serverId;
 		this.host = host;
@@ -61,7 +61,7 @@ public class RMClient{
 	
 	public RMClient(int serverId, ServerNode serverNode) {
 		String host = serverNode.getHost();
-		int port = serverNode.getPort();
+		int port = serverNode.getRPort();
 		
 		this.serverId = serverId;
 		this.host = host;
@@ -115,7 +115,7 @@ public class RMClient{
 	
 	public void connect(ServerNode serverNode) {
 		String host = serverNode.getHost();
-		int port = serverNode.getPort();
+		int port = serverNode.getRPort();
 		connect(host, port);
 	}
 	

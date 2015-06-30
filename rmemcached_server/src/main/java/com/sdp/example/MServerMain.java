@@ -50,13 +50,16 @@ public class MServerMain {
 		getServerList();
 		initLocalHotspot();
 		int id = getMemcachedNumber();
+		Log.setInstanceId(id);
+		Log.log.info(Log.id + " new r-memcached instance start, instance id: " + id);
 		
 		MServer mServer = new MServer();
 		ServerNode serverNode = serversMap.get(id);
 		String server = serverNode.getServer();
-		MServerHandler mServerHandler = new MServerHandler(server, id, serversMap, protocol);
-		mServerHandler.setMServer(mServer);
-		mServer.init(id, monitorAddress, serversMap, mServerHandler);
+		MServerHandler wServerHandler = new MServerHandler(server, id, serversMap, protocol);
+		MServerHandler rServerHandler = new MServerHandler(server, id, serversMap, protocol);
+		rServerHandler.setMServer(mServer);
+		mServer.init(id, monitorAddress, serversMap, wServerHandler, rServerHandler);
 	}
 	
 	@SuppressWarnings({ "unchecked" })
@@ -70,9 +73,10 @@ public class MServerMain {
 	        for (Element server : childElements) {
 				 int id = Integer.parseInt(server.elementText("id"));
 				 String host = server.elementText("host");
-				 int port = Integer.parseInt(server.elementText("port"));
+				 int rport = Integer.parseInt(server.elementText("rport"));
+				 int wport = Integer.parseInt(server.elementText("wport"));
 				 int memcached = Integer.parseInt(server.elementText("memcached"));
-				 ServerNode serverNode = new ServerNode(id, host, port, memcached);
+				 ServerNode serverNode = new ServerNode(id, host, rport, wport, memcached);
 				 serversMap.put(id, serverNode);
 	        }
 		} catch (DocumentException e) {
@@ -80,22 +84,8 @@ public class MServerMain {
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	public void initLocalHotspot() {
 		LocalSpots.threshold = threshold;
-		String hotspotsPath = System.getProperty("user.dir") + "/config/hotspot.xml";
-		SAXReader sr = new SAXReader();
-		try {
-			Document doc = sr.read(hotspotsPath);
-			Element root = doc.getRootElement();
-			List<Element> childElements = root.elements();
-	        for (Element hotspot : childElements) {
-				 int keynum = Integer.parseInt(hotspot.getText());
-				 LocalSpots.addHot(keynum);
-	        }
-		} catch (DocumentException e) {
-			Log.log.error("wrong hotspot.xml", e);
-		}
 	}
 	
 	public void getConfig() {

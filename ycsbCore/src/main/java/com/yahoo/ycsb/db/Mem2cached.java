@@ -100,9 +100,10 @@ public class Mem2cached extends DB {
 	        for (Element server : childElements) {
 				 int id = Integer.parseInt(server.elementText("id"));
 				 String host = server.elementText("host");
-				 int port = Integer.parseInt(server.elementText("port"));
+				 int rport = Integer.parseInt(server.elementText("rport"));
+				 int wport = Integer.parseInt(server.elementText("wport"));
 				 int memcachedPort = Integer.parseInt(server.elementText("memcached"));
-				 ServerNode serverNode = new ServerNode(id, host, port, memcachedPort);
+				 ServerNode serverNode = new ServerNode(id, host, rport, wport, memcachedPort);
 				 serversMap.put(id, serverNode);
 	        }
 		} catch (DocumentException e) {

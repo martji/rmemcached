@@ -3,25 +3,15 @@
 	<server>
 		<id>0000</id>
 		<host>192.168.3.109</host>
-		<port>30000</port>
+		<rport>30000</rport>
+		<wport>40000</wport>
 		<memcached>20000</memcached>
 	</server>
 	<server>
 		<id>0001</id>
-		<host>192.168.3.244</host>
-		<port>30001</port>
+		<host>192.168.3.109</host>
+		<rport>30001</rport>
+		<wport>40001</wport>
 		<memcached>20001</memcached>
-	</server>
-	<server>
-		<id>0002</id>
-		<host>192.168.3.244</host>
-		<port>30002</port>
-		<memcached>20002</memcached>
-	</server>
-	<server>
-		<id>0003</id>
-		<host>192.168.3.244</host>
-		<port>30003</port>
-		<memcached>20003</memcached>
 	</server>
 </servers>
